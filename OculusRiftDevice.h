@@ -1,5 +1,4 @@
-#import "OVR.h"
-using namespace OVR;
+#import <LibOVR/OVR_CAPI_0_5_0.h>
 
 @interface OculusRiftDevice : NSObject
 

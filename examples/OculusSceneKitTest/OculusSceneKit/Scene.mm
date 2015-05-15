@@ -1,4 +1,6 @@
 #import "Scene.h"
+#import <Extras/OVR_Math.h>
+using namespace OVR;
 
 @implementation Scene
 {

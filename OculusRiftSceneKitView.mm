@@ -381,7 +381,10 @@ static CVReturn renderCallback(CVDisplayLinkRef displayLink,
         
         [[self openGLContext] makeCurrentContext];
         [leftEyeRenderer render];
-        [rightEyeRenderer render];
+		glFinish();
+		[rightEyeRenderer render];
+		[rightEyeRenderer render];
+		glFinish();
         [self renderStereoscopicScene];  // apply distortion
         [[self openGLContext] flushBuffer];
     });

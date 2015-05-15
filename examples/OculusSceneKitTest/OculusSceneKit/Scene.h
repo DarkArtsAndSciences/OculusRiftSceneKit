@@ -1,6 +1,4 @@
 #import <SceneKit/SceneKit.h>
-#import "OVR.h"
-using namespace OVR;
 
 #import "MainWindow.h"
 

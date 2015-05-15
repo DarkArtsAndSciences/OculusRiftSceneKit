@@ -1,4 +1,7 @@
 #import "OculusRiftDevice.h"
+#import <Extras/OVR_Math.h>
+
+using namespace OVR;
 
 @implementation OculusRiftDevice
 
