@@ -82,8 +82,6 @@ NSString *const kOCVRLensCorrectionFragmentShaderString = SHADER_STRING
     
     CVDisplayLinkRef displayLink;
     
-    BOOL leftSceneReady, rightSceneReady;
-    
     SCNNode *leftEyeCameraNode, *rightEyeCameraNode;
     
     CGFloat redBackgroundComponent, blueBackgroundComponent, greenBackgroundComponent, alphaBackgroundComponent;
@@ -151,7 +149,13 @@ static CVReturn renderCallback(CVDisplayLinkRef displayLink,
     interpupillaryDistance = 64.0;
     
     // initialize OpenGL context
-    [self setOpenGLContext:[[NSOpenGLContext alloc] initWithFormat:[self pixelFormat] shareContext:nil]];
+	NSOpenGLContext *context = [[NSOpenGLContext alloc] initWithFormat:[self pixelFormat]
+														  shareContext:nil];
+	[self setOpenGLContext: context];
+	NSOpenGLContext *leftContext = [[NSOpenGLContext alloc] initWithFormat:[self pixelFormat]
+															  shareContext:context];
+	NSOpenGLContext *rightContext = [[NSOpenGLContext alloc] initWithFormat:[self pixelFormat]
+															   shareContext:context];
     NSAssert([self openGLContext] != nil, @"Unable to create an OpenGL context.");
     // TODO: user-friendly error handling
     
@@ -231,14 +235,14 @@ static CVReturn renderCallback(CVDisplayLinkRef displayLink,
     glEnableVertexAttribArray(displayTextureCoordinateAttribute);
     
     // create a renderer for each eye
-    SCNRenderer *(^makeEyeRenderer)() = ^
+    SCNRenderer *(^makeEyeRenderer)(CGLContextObj) = ^(CGLContextObj context)
     {
-        SCNRenderer *renderer = [SCNRenderer rendererWithContext:[[self openGLContext] CGLContextObj] options:nil];
+        SCNRenderer *renderer = [SCNRenderer rendererWithContext:context options:nil];
         renderer.delegate = self;
         return renderer;
     };
-    leftEyeRenderer  = makeEyeRenderer();
-    rightEyeRenderer = makeEyeRenderer();
+    leftEyeRenderer  = makeEyeRenderer(leftContext.CGLContextObj);
+    rightEyeRenderer = makeEyeRenderer(rightContext.CGLContextObj);
     
     // connect render callback
     CGDirectDisplayID displayID = CGMainDisplayID();
@@ -249,9 +253,6 @@ static CVReturn renderCallback(CVDisplayLinkRef displayLink,
 - (void)setScene:(SCNScene *)newScene
 {
     CVDisplayLinkStop(displayLink);
-    
-    leftSceneReady = NO;
-    rightSceneReady = NO;
     
     glUniform4f(hmdWarpParamUniform, 1.0, 0.22, 0.24, 0.0);
     
@@ -294,6 +295,7 @@ static CVReturn renderCallback(CVDisplayLinkRef displayLink,
 
 - (void)renderStereoscopicScene
 {
+	[[self openGLContext] makeCurrentContext];
     static const GLfloat leftEyeVertices[] = {
         -1.0f, -1.0f,
          0.0f, -1.0f,
@@ -364,9 +366,7 @@ static CVReturn renderCallback(CVDisplayLinkRef displayLink,
     
     glDisableVertexAttribArray(displayPositionAttribute);
     glDisableVertexAttribArray(displayTextureCoordinateAttribute);
-    
-    rightSceneReady = NO;
-    leftSceneReady = NO;
+	[[self openGLContext] flushBuffer];
 }
 
 - (CVReturn)renderTime:(const CVTimeStamp *)timeStamp
@@ -378,15 +378,14 @@ static CVReturn renderCallback(CVDisplayLinkRef displayLink,
         float x, y, z;
         [[OculusRiftDevice getDevice] getHeadRotationX:&x Y:&y Z:&z]; // update camera pose
         [[Scene currentScene] setHeadRotationX:x Y:y Z:z];
-        
-        [[self openGLContext] makeCurrentContext];
+		
+		CGLSetCurrentContext((CGLContextObj)leftEyeRenderer.context);
         [leftEyeRenderer render];
 		glFinish();
-		[rightEyeRenderer render];
+		CGLSetCurrentContext((CGLContextObj)rightEyeRenderer.context);
 		[rightEyeRenderer render];
 		glFinish();
         [self renderStereoscopicScene];  // apply distortion
-        [[self openGLContext] flushBuffer];
     });
     
     return kCVReturnSuccess;
@@ -429,32 +428,6 @@ static CVReturn renderCallback(CVDisplayLinkRef displayLink,
     
     glClearColor(redBackgroundComponent, greenBackgroundComponent, blueBackgroundComponent, alphaBackgroundComponent);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-}
-
-- (void)renderer:(id <SCNSceneRenderer>)aRenderer didRenderScene:(SCNScene *)scene atTime:(NSTimeInterval)time;
-{
-    if (aRenderer == leftEyeRenderer)
-    {
-        if (rightSceneReady)
-        {
-            [self renderStereoscopicScene];
-        }
-        else
-        {
-            leftSceneReady = YES;
-        }
-    }
-    else if (aRenderer == rightEyeRenderer)
-    {
-        if (leftSceneReady)
-        {
-            [self renderStereoscopicScene];
-        }
-        else
-        {
-            rightSceneReady = YES;
-        }
-    }
 }
 
 #pragma mark -
