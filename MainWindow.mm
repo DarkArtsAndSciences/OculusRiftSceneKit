@@ -1,5 +1,4 @@
 #import "MainWindow.h"
-#import "Scene.h"
 #import "OculusRiftDevice.h"
 
 @implementation MainWindow
@@ -40,48 +39,6 @@
 	
     return self;
 }
-
-#pragma mark - Event handlers
-
-- (void)eventHandler:(NSEvent*)theEvent
-{
-	NSEventType eventType = [theEvent type];
-	NSDictionary *handlers = [[Scene currentScene] getHandlersForEventType:eventType];
-	NSMutableString *keyCodeString = [NSMutableString string];
-	
-	unsigned long modifierFlags = [theEvent modifierFlags];
-	if (modifierFlags & NSCommandKeyMask)	[keyCodeString appendString:@"#"];
-	if (modifierFlags & NSControlKeyMask)	[keyCodeString appendString:@"^"];
-	if (modifierFlags & NSAlternateKeyMask)	[keyCodeString appendString:@"="];
-	if (modifierFlags & NSShiftKeyMask)		[keyCodeString appendString:@"+"];
-	
-	if ((eventType == NSKeyDown) || (eventType == NSKeyUp))
-		[keyCodeString appendString:[[NSNumber numberWithInt:[theEvent keyCode]] stringValue]];
-	
-	else if ((eventType == NSLeftMouseDown) || (eventType == NSLeftMouseUp))
-		[keyCodeString appendString:@"left"];
-	else if ((eventType == NSRightMouseDown) || (eventType == NSRightMouseUp))
-		[keyCodeString appendString:@"right"];
-	else if (eventType == NSMouseMoved)
-		[keyCodeString appendString:@"drag"];
-	
-	BOOL debug = [[OculusRiftDevice getDevice] isDebugHmd];
-	if (debug) NSLog(@"handling event for type %lu-%@", (unsigned long)eventType, keyCodeString);
-	
-	SEL handler = (SEL)[[handlers objectForKey:keyCodeString] pointerValue];
-	if (handler)
-		[[Scene currentScene] performSelector:handler];
-	else
-		if (debug) NSLog(@"no handler for key %lu-%@", (unsigned long)eventType, keyCodeString);
-}
-
-- (void)keyDown:(NSEvent *)theEvent        { [self eventHandler:theEvent]; }
-- (void)keyUp:(NSEvent *)theEvent          { [self eventHandler:theEvent]; }
-- (void)mouseUp:(NSEvent *)theEvent        { [self eventHandler:theEvent]; }
-- (void)mouseDown:(NSEvent *)theEvent      { [self eventHandler:theEvent]; }
-- (void)mouseDragged:(NSEvent *)theEvent   { [self eventHandler:theEvent]; }
-- (void)rightMouseDown:(NSEvent *)theEvent { [self eventHandler:theEvent]; }
-- (void)rightMouseUp:(NSEvent *)theEvent   { [self eventHandler:theEvent]; }
 
 - (BOOL)canBecomeKeyWindow { return YES; }  // allow borderless window to receive key events
 

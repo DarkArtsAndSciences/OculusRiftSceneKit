@@ -1,4 +1,5 @@
 #import "OculusRiftSceneKitView.h"
+#import "HolodeckScene.h"
 
 #define STRINGIZE(x) #x
 #define STRINGIZE2(x) STRINGIZE(x)
@@ -7,8 +8,8 @@
 #define EYE_RENDER_RESOLUTION_X 800
 #define EYE_RENDER_RESOLUTION_Y 1000
 
-#define LEFT 0
-#define RIGHT 1
+#define LEFT ovrEye_Left
+#define RIGHT ovrEye_Right
 
 NSString *const kOCVRVertexShaderString = SHADER_STRING
 (
@@ -62,6 +63,43 @@ NSString *const kOCVRLensCorrectionFragmentShaderString = SHADER_STRING
  }
  );
 
+@interface EventHandler : NSObject
+
+@property (readonly) id handler;
+@property (readonly) SEL action;
+@property (readonly) NSUInteger modifiers;
+
+- (id) initWithHandler: (id) handler action: (SEL) action modifiers: (NSUInteger) modifiers;
+- (void) actWithObject: (id)obj;
+
+@end
+
+@implementation EventHandler
+
+@synthesize handler;
+@synthesize action;
+@synthesize modifiers;
+
+- (id) initWithHandler:(id)aHandler action:(SEL)anAction modifiers:(NSUInteger)mods
+{
+	self = [super init];
+	if (self != nil) {
+		handler = aHandler;
+		action = anAction;
+		modifiers = mods;
+	}
+	return self;
+}
+
+- (void) actWithObject:(id)obj
+{
+	if (![handler respondsToSelector:action])
+		NSLog(@"Cannot respond to action");
+	[handler performSelector:action withObject:obj];
+}
+
+@end
+
 @interface OculusRiftSceneKitView()
 {
 	//OculusRiftDevice *oculusRiftDevice;
@@ -85,10 +123,20 @@ NSString *const kOCVRLensCorrectionFragmentShaderString = SHADER_STRING
     SCNNode *leftEyeCameraNode, *rightEyeCameraNode;
     
     CGFloat redBackgroundComponent, blueBackgroundComponent, greenBackgroundComponent, alphaBackgroundComponent;
+	
+	SCNScene *scene;
+	// event handlers
+	NSMutableDictionary *keyDownHandlers;
+	NSMutableDictionary *keyUpHandlers;
+	NSMutableArray *mouseDownHandlers;
+	NSMutableArray *mouseUpHandlers;
+	NSMutableArray *mouseDragHandlers;
 }
 
 - (void)setupPixelFormat;
 - (void)commonInit;
+- (void)initEventHandlers;
+- (NSString*) keyCode: (NSEvent*) theEvent;
 - (void)renderStereoscopicScene;
 
 @end
@@ -104,6 +152,8 @@ static CVReturn renderCallback(CVDisplayLinkRef displayLink,
 }
 
 @implementation OculusRiftSceneKitView
+
+@synthesize avatar;
 
 #pragma mark -
 #pragma mark Initialization and teardown
@@ -142,12 +192,21 @@ static CVReturn renderCallback(CVDisplayLinkRef displayLink,
     // caller deals with error handling
 }
 
+- (void) initEventHandlers
+{
+	mouseDownHandlers = [NSMutableArray array];
+	mouseUpHandlers = [NSMutableArray array];
+	mouseDragHandlers = [NSMutableArray array];
+	keyDownHandlers = [NSMutableDictionary dictionary];
+	keyUpHandlers = [NSMutableDictionary dictionary];
+}
+
 - (void)commonInit
 {
     // initialize hardware
     [OculusRiftDevice getDevice];
     interpupillaryDistance = 64.0;
-    
+	[self initEventHandlers];
     // initialize OpenGL context
 	NSOpenGLContext *context = [[NSOpenGLContext alloc] initWithFormat:[self pixelFormat]
 														  shareContext:nil];
@@ -252,44 +311,24 @@ static CVReturn renderCallback(CVDisplayLinkRef displayLink,
 
 - (void)setScene:(SCNScene *)newScene
 {
-    CVDisplayLinkStop(displayLink);
-    
+	CVDisplayLinkStop(displayLink);
+	scene = newScene;
+	if ([scene isKindOfClass: [HolodeckScene class]])
+		[(HolodeckScene*)scene addEventHandlersToView: self];
+	
     glUniform4f(hmdWarpParamUniform, 1.0, 0.22, 0.24, 0.0);
     
     leftEyeRenderer.scene = newScene;
     rightEyeRenderer.scene = newScene;
-	if (![newScene isKindOfClass:[Scene class]])
-	{
-		CVDisplayLinkStart(displayLink);
-		return;
-	}
-	Scene *scene = (Scene*)newScene;
-	[Scene setCurrentScene:(Scene*)scene];
-    
-    // create cameras
-    SCNNode *(^addNodeforEye)(int) = ^(int eye)
-    {
-        // TODO: read these from the HMD?
-        CGFloat verticalFOV = 97.5;
-        CGFloat horizontalFOV = 80.8;
-        
-        SCNCamera *camera = [SCNCamera camera];
-        camera.xFov = 120;
-        camera.yFov = verticalFOV;
-        camera.zNear = horizontalFOV;
-        camera.zFar = 2000;
-        
-        SCNNode *node = [SCNNode node];
-        node.camera = camera;
-        node.transform = [self getCameraTranslationForEye:eye];
-        
-        return node;
-    };
-    leftEyeRenderer.pointOfView = addNodeforEye(LEFT);
-    rightEyeRenderer.pointOfView = addNodeforEye(RIGHT);
-    [scene linkNodeToHeadRotation:leftEyeRenderer.pointOfView];
-    [scene linkNodeToHeadRotation:rightEyeRenderer.pointOfView];
-    
+
+	avatar = [[Avatar alloc] initWithIPD:interpupillaryDistance
+							   eyeHeight:250
+						 leftEyeRenderer:leftEyeRenderer
+						rightEyeRenderer:rightEyeRenderer];
+	if ([newScene respondsToSelector:@selector(setAvatar:)]) {
+		[newScene performSelector:@selector(setAvatar:) withObject:avatar];
+	} else [newScene.rootNode addChildNode: avatar];
+	[avatar addEventHandlersToView: self];
     CVDisplayLinkStart(displayLink);
 }
 
@@ -371,17 +410,18 @@ static CVReturn renderCallback(CVDisplayLinkRef displayLink,
 
 - (CVReturn)renderTime:(const CVTimeStamp *)timeStamp
 {
-    // use a background queue to avoid blocking the main thread
     dispatch_async(dispatch_get_main_queue(), ^{
-        [[Scene currentScene] tick:timeStamp];
-        
-        float x, y, z;
-        [[OculusRiftDevice getDevice] getHeadRotationX:&x Y:&y Z:&z]; // update camera pose
-        [[Scene currentScene] setHeadRotationX:x Y:y Z:z];
+		[avatar tick];
+		if ([scene isKindOfClass: [HolodeckScene class]])
+			 [(HolodeckScene*)scene tick];
 		
+		OculusRiftDevice *hmd = [OculusRiftDevice getDevice];
+		[avatar setHeadRotation:[hmd getHeadRotation]];
 		CGLSetCurrentContext((CGLContextObj)leftEyeRenderer.context);
         [leftEyeRenderer render];
 		glFinish();
+
+		[avatar setHeadRotation:[hmd getHeadRotation]];
 		CGLSetCurrentContext((CGLContextObj)rightEyeRenderer.context);
 		[rightEyeRenderer render];
 		glFinish();
@@ -436,8 +476,8 @@ static CVReturn renderCallback(CVDisplayLinkRef displayLink,
 - (CATransform3D)getCameraTranslationForEye:(int)eye
 {
     // TODO: read IPD from HMD?
-    float x = (-1 * eye) * (interpupillaryDistance/-2.0);
-    return CATransform3DMakeTranslation(x, 0.0, 0.0);
+    float x = (-1 * (2*eye-1)) * (interpupillaryDistance/-2.0);
+    return CATransform3DMakeTranslation(x, fabs(x), 0.0);
 }
 - (void)setInterpupillaryDistance:(CGFloat)ipd;
 {
@@ -447,4 +487,148 @@ static CVReturn renderCallback(CVDisplayLinkRef displayLink,
     rightEyeCameraNode.transform = [self getCameraTranslationForEye:RIGHT];
 }
 
+#pragma mark Event handlers
+
+- (NSString*) keyCode: (NSEvent*) theEvent
+{
+	return [[NSNumber numberWithInt:[theEvent keyCode]] stringValue];
+}
+
+BOOL checkModifiers(NSUInteger handler, NSUInteger event)
+{
+	if (handler == -1) return YES;
+	if ((handler & NSShiftKeyMask) != (event & NSShiftKeyMask)) return NO;
+	if ((handler & NSControlKeyMask) != (event &NSControlKeyMask)) return NO;
+	if ((handler & NSAlternateKeyMask) != (event & NSAlternateKeyMask)) return NO;
+	if ((handler & NSCommandKeyMask) != (event & NSCommandKeyMask)) return NO;
+	return YES;
+}
+
+- (void) handleKey: (NSEvent*)theEvent byHandlers: (NSDictionary*) handlerMap
+{
+	NSString *key = [self keyCode: theEvent];
+	NSArray *handlers = [handlerMap objectForKey: key];
+	if (handlers == nil)
+		NSLog(@"no handler for key %@", key);
+	else for (EventHandler *handler in handlers)
+		if (checkModifiers(handler.modifiers, [theEvent modifierFlags]))
+			[handler actWithObject: theEvent];
+}
+
+- (void) keyDown:(NSEvent *)theEvent
+{
+	[self handleKey: theEvent byHandlers: keyDownHandlers];
+}
+
+- (void) keyUp:(NSEvent *)theEvent
+{
+	[self handleKey: theEvent byHandlers: keyUpHandlers];
+}
+
+- (void) handleMouseEvent: (NSEvent*)theEvent byHandlers: (NSArray*) handlers
+{
+	for (EventHandler *handler in handlers)
+		if (checkModifiers(handler.modifiers, [theEvent modifierFlags]))
+			[handler actWithObject: theEvent];
+}
+
+- (void) mouseDown:(NSEvent *)theEvent
+{
+	if ([mouseDownHandlers count] == 0)
+		NSLog(@"No mouse down handler");
+	else [self handleMouseEvent: theEvent byHandlers: mouseDownHandlers];
+}
+
+- (void) mouseUp:(NSEvent *)theEvent
+{
+	if ([mouseUpHandlers count] == 0)
+		NSLog(@"No mouse up handler");
+	else [self handleMouseEvent: theEvent byHandlers: mouseUpHandlers];
+}
+
+- (void) mouseDragged:(NSEvent *)theEvent
+{
+	if ([mouseDragHandlers count] == 0)
+		NSLog(@"No mouse drag handler");
+	else [self handleMouseEvent: theEvent byHandlers: mouseDragHandlers];
+}
+
+- (void) registerKeyHandler:(id)handler
+					 action:(SEL)action
+					 forKey:(NSString *)key
+				  modifiers:(NSUInteger)modifiers
+					  inMap:(NSMutableDictionary*) handlerMap
+{
+	EventHandler *theHandler = [[EventHandler alloc] initWithHandler:handler
+															  action:action
+														   modifiers:modifiers];
+	NSMutableArray *handlers = [handlerMap objectForKey: key];
+	if (handlers == nil)
+		[handlerMap setObject: [NSMutableArray arrayWithObject: theHandler] forKey: key];
+	else [handlers addObject: theHandler];
+}
+
+- (void) registerKeyDownHandler:(id)handler
+						 action:(SEL)action
+						 forKey:(NSString*)key
+					  withModifiers:(NSUInteger)modifiers
+{
+	[self registerKeyHandler:handler
+					  action:action
+					  forKey:key
+				   modifiers:modifiers
+					   inMap:keyDownHandlers];
+}
+
+- (void) registerKeyUpHandler:(id)handler
+					   action:(SEL)action
+					   forKey:(NSString*)key
+				withModifiers:(NSUInteger)modifiers
+{
+	[self registerKeyHandler:handler
+					  action:action
+					  forKey:key
+				   modifiers:modifiers
+					   inMap:keyUpHandlers];
+}
+
+- (void) registerMouseHandler:(id)handler
+					   action:(SEL)action
+					modifiers:(NSUInteger)modifiers
+				   inHandlers:(NSMutableArray*)handlers
+{
+	[handlers addObject: [[EventHandler alloc] initWithHandler:handler
+														action:action
+													 modifiers:modifiers]];
+}
+
+- (void) registerMouseDownHandler:(id)handler
+						   action:(SEL)action
+					withModifiers:(NSUInteger)modifiers
+{
+	[self registerMouseHandler:handler
+						action:action
+					 modifiers:modifiers
+					inHandlers:mouseDownHandlers];
+}
+
+- (void) registerMouseUpHandler:(id)handler
+						 action:(SEL)action
+				  withModifiers:(NSUInteger)modifiers
+{
+	[self registerMouseHandler:handler
+						action:action
+					 modifiers:modifiers
+					inHandlers:mouseUpHandlers];
+}
+
+- (void) registerMouseDragHandler:(id)handler
+						   action:(SEL)action
+					withModifiers:(NSUInteger)modifiers
+{
+	[self registerMouseHandler:handler
+						action:action
+					 modifiers:modifiers
+					inHandlers:mouseDragHandlers];
+}
 @end
