@@ -13,7 +13,9 @@
 
 @end
 
-@implementation AppDelegate
+@implementation AppDelegate {
+	MainWindow *window;
+}
 
 - (void)applicationDidFinishLaunching:(NSNotification *)aNotification
 {
@@ -21,25 +23,36 @@
 	SCNScene *scene = [self getDefaultScene];
 
 	OculusRiftDevice *hmd = [OculusRiftDevice getDevice];
-	if (![hmd isDebugHmd]) // use full screen
+	NSSize screenSize = hmd.screen.frame.size;
+	NSRect frame;
+	BOOL fullScreen = !hmd.isDebugHmd;
+	frame.origin = NSMakePoint((screenSize.width-hmd.resolution.width)/2,
+							   (screenSize.height-hmd.resolution.height)/2);
+	frame.size = hmd.resolution;
+	NSUInteger style = (fullScreen)? NSBorderlessWindowMask : NSTitledWindowMask | NSMiniaturizableWindowMask | NSResizableWindowMask ;
+	window = [[MainWindow alloc] initWithContentRect:frame
+													   styleMask:style
+														 backing:NSBackingStoreBuffered
+														   defer:YES
+														  screen:hmd.screen];
+	if (fullScreen) // use full screen
 	{
 		// FUTURE: This assumes the HMD is the main screen, because the v0.4.1 Mac drivers don't support anything else.
-		[_window setStyleMask: NSBorderlessWindowMask];
-		NSRect screenRect = [[NSScreen mainScreen] frame];
-		NSRect windowRect = NSMakeRect(0.0, 0.0, screenRect.size.width, screenRect.size.height);
-		[_window setFrame:windowRect display:YES];		// window size and autoredraw subviews
-		[_window setLevel:NSMainMenuWindowLevel+1];	// above the menu bar
-		[_window setMovable:NO];						// not movable
-		[_window setHidesOnDeactivate:NO];				// do NOT autohide when not front app
+		[window setLevel:NSMainMenuWindowLevel+1];	// above the menu bar
+		[window setMovable:NO];						// not movable
+		[window setHidesOnDeactivate:NO];				// do NOT autohide when not front app
 		//[self toggleFullScreen:nil];				// use own Space (10.7+)
 	}
-	// connect the view to the window
-	[_window setContentView:self.oculusView];
-	[_window makeFirstResponder:self.oculusView];
-	[_window makeKeyAndOrderFront:self];
-	// connect the scene to the view
-	[self.oculusView setScene:scene];
 	
+	// view
+	OculusRiftSceneKitView *oculusView = [[OculusRiftSceneKitView alloc] initWithFrame: frame];
+	// connect the scene to the view
+	[oculusView setScene:scene];
+
+	// connect the view to the window
+	[window setContentView:oculusView];
+	[window makeFirstResponder:oculusView];
+	[window makeKeyAndOrderFront:self];
 }
 
 - (SCNScene*)getDefaultScene

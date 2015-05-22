@@ -5,6 +5,8 @@ using namespace OVR;
 
 @implementation OculusRiftDevice
 
+@synthesize resolution;
+@synthesize screen;
 @synthesize hmd;  // ovrHmd_Create(0) or ovrHmd_CreateDebug(ovrHmd_DK2)
 @synthesize isDebugHmd;
 
@@ -23,8 +25,23 @@ using namespace OVR;
         hmd = ovrHmd_CreateDebug(ovrHmd_DK2);
     }
     NSLog(@"using HMD: %s %s", hmd->ProductName, hmd->SerialNumber);
-    
-    [self configureSensor];
+
+	resolution = NSMakeSize(hmd->Resolution.w, hmd->Resolution.h);
+	screen = nil;
+	NSArray *screens = [NSScreen screens];
+	if (screens.count > 1) {
+		for (NSScreen *s in screens) {
+			if (s == [NSScreen mainScreen]) continue;
+			NSSize size = s.frame.size;
+			if (size.width == resolution.width && size.height == resolution.height) {
+				screen = s;
+				break;
+			}
+		}
+	}
+	if (screen == nil) screen = [NSScreen mainScreen];
+
+	[self configureSensor];
     
     return self;
 }
