@@ -10,8 +10,15 @@
 
 @property Avatar* avatar;
 
-- (void)setScene:(SCNScene *)newScene;
+// the eyeHeight and pivotToEyes are all measured in meters.
+- (void)setScene:(SCNScene *)newScene
+   withEyeHeight:(CGFloat)eyeHeight
+	 pivotToEyes:(CGFloat)pivotToEyes;
+
 - (CVReturn)renderTime:(const CVTimeStamp *)timeStamp;
+- (void) setUseNativeResolution: (BOOL) use;
+- (void) setEyeHeight: (CGFloat) height;
+
 - (void) registerKeyDownHandler:(id)handler
 						 action:(SEL)action
 						 forKey:(NSString*)key

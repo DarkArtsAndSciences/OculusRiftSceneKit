@@ -3,7 +3,7 @@
 
 @interface OculusRiftDevice : NSObject
 
-@property (readonly) NSSize resolution;
+@property (assign, readonly) NSSize resolution;
 @property (readonly) NSScreen *screen;
 @property (assign, readonly) ovrHmd hmd;
 @property (assign, readonly) bool   isDebugHmd;
@@ -12,5 +12,8 @@
 
 - (SCNVector3)getHeadRotation;
 - (void)shutdown;
+- (void) configureOpenGL;
+- (const ovrEyeRenderDesc &) renderDescForEye: (ovrEyeType) eye;
+- (NSSize) recommendedTextureSizeForEye: (ovrEyeType) eye;
 
 @end

@@ -47,7 +47,7 @@
 	// view
 	OculusRiftSceneKitView *oculusView = [[OculusRiftSceneKitView alloc] initWithFrame: frame];
 	// connect the scene to the view
-	[oculusView setScene:scene];
+	[oculusView setScene:scene withEyeHeight: 1.8 pivotToEyes: 0.1];
 
 	// connect the view to the window
 	[window setContentView:oculusView];

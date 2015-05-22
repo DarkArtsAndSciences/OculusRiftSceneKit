@@ -3,6 +3,7 @@
 #import <Extras/OVR_Math.h>
 using namespace OVR;
 
+
 @interface Avatar (EventHandlers)
 - (void)addEventHandlersForWASDToView: (OculusRiftSceneKitView*)view;
 - (void)addEventHandlersForArrowToView: (OculusRiftSceneKitView*)view;
@@ -32,26 +33,26 @@ using namespace OVR;
 	return SCNVector3Make(vec.x, vec.y, vec.z);
 }
 
-- (id)initWithIPD:(CGFloat)ipd
-		eyeHeight:(CGFloat)eyeHeight
-  leftEyeRenderer:(SCNRenderer *)leftEyeRenderer
- rightEyeRenderer:(SCNRenderer *)rightEyeRenderer
+- (id)initWithEyeHeight:(CGFloat)eyeHeight
+			pivotToEyes:(CGFloat)pivotToEyes
+		leftEyeRenderer:(SCNRenderer *)leftEyeRenderer
+	   rightEyeRenderer:(SCNRenderer *)rightEyeRenderer
 {
-    if (!(self = [super init])) return nil;
-	headNode = [self makeHeadNodeWithIPD:ipd
-							   eyeHeight:eyeHeight
-						 leftEyeRenderer:leftEyeRenderer
-						rightEyeRenderer:rightEyeRenderer];
-	[self addChildNode:headNode];
-	[self load];
+	if (!(self = [super init])) return nil;
 	// default speed
 	moveDirection = SCNVector3Make(0, 0, 0);
-	walkSpeed = 100;
-	runSpeed = 200;
+	walkSpeed = 1;
+	runSpeed = 3;
 	turnSpeed = M_PI*2;
 	speed = 0;
 	eventTimeStamp = [NSDate timeIntervalSinceReferenceDate];
-	
+	// head node
+	headNode = [self makeHeadNodeWithEyeHeight:eyeHeight
+								   pivotToEyes:pivotToEyes
+							   leftEyeRenderer:leftEyeRenderer
+							  rightEyeRenderer:rightEyeRenderer];
+	[self addChildNode:headNode];
+	[self load];
     return self;
 }
 
@@ -69,33 +70,32 @@ using namespace OVR;
 - (SCNVector3) headRotation { return headNode.eulerAngles; }
 - (void)setHeadRotation: (SCNVector3) rotation { headNode.eulerAngles = rotation; }
 
-- (SCNNode*)makeHeadNodeWithIPD:(CGFloat)ipd
-					  eyeHeight:(CGFloat)eyeHeight
-				leftEyeRenderer: (SCNRenderer*)leftEyeRenderer
-			   rightEyeRenderer: (SCNRenderer*)rightEyeRenderer;
+- (SCNNode*)makeHeadNodeWithEyeHeight:(CGFloat)eyeHeight
+						  pivotToEyes:(CGFloat)pivotToEyes
+					  leftEyeRenderer:(SCNRenderer*)leftEyeRenderer
+					 rightEyeRenderer:(SCNRenderer*)rightEyeRenderer;
 {
-	// create nodes for eye cameras and head sensors
 	SCNNode *head = [SCNNode node];
-	CGFloat pivotHeight = ipd;
-	head.position = SCNVector3Make(0, eyeHeight-pivotHeight, 0);
-	SCNNode *(^addNodeforEye)(int) = ^(int eye)
+	// create nodes for eye cameras and head sensors
+	OculusRiftDevice *hmd = [OculusRiftDevice getDevice];
+	self.position = SCNVector3Make(0, eyeHeight-pivotToEyes, 0);
+	SCNNode *(^addNodeforEye)(ovrEyeType) = ^(ovrEyeType eye)
 	{
+		Vector3f displace = [hmd renderDescForEye: eye].HmdToEyeViewOffset;
+		FovPort fov = [hmd renderDescForEye: eye].Fov;
 		// TODO: read these from the HMD?
-		CGFloat verticalFOV = 97.5;
-		CGFloat horizontalFOV = 80.8;
 		
 		SCNCamera *camera = [SCNCamera camera];
-		camera.xFov = 120;
-		camera.yFov = verticalFOV;
-		camera.zNear = horizontalFOV;
-		camera.zFar = 3600;
+		camera.xFov = fov.GetHorizontalFovDegrees();
+		camera.yFov = fov.GetVerticalFovDegrees();
+		camera.zNear = 0.01;
+		camera.zFar = 1000;
 		
 		SCNNode *node = [SCNNode node];
 		node.camera = camera;
-		CGFloat x = (eye*2-1)*ipd/2;
 		// obviously the when we tilt our head, we should have a shift in eye position as well
 		// here I move eyes up by an IPD, but I am not sure if this the the best way
-		node.position = SCNVector3Make(x, ipd, 0);
+		node.position = SCNVector3Make(displace.x, pivotToEyes, displace.z);
 		[head addChildNode: node];
 		return node;
 	};

@@ -1,9 +1,13 @@
 #import "OculusRiftDevice.h"
+#import <LibOVR/OVR_CAPI_GL.h>
 #import <Extras/OVR_Math.h>
 
 using namespace OVR;
 
-@implementation OculusRiftDevice
+@implementation OculusRiftDevice {
+	ovrEyeRenderDesc eyeRenderDesc[2];
+	NSSize textureSize[2];
+}
 
 @synthesize resolution;
 @synthesize screen;
@@ -104,6 +108,31 @@ using namespace OVR;
         ovrHmd_Destroy(hmd);
     
     ovr_Shutdown();
+}
+
+- (const ovrEyeRenderDesc &)renderDescForEye:(ovrEyeType)eye
+{
+	return eyeRenderDesc[eye];
+}
+
+- (void)configureOpenGL
+{
+	ovrGLConfig cfg;
+	cfg.OGL.Header.API = ovrRenderAPI_OpenGL;
+	cfg.OGL.Header.BackBufferSize = Sizei(resolution.width, resolution.height);
+	cfg.OGL.Header.Multisample = 1;
+	ovrBool result = ovrHmd_ConfigureRendering(hmd, (ovrRenderAPIConfig*)&cfg.Config, hmd->DistortionCaps, hmd->DefaultEyeFov, eyeRenderDesc);
+	NSAssert(result, @"Cannot configure HMD for openGL");
+	
+	ovrSizei size = ovrHmd_GetFovTextureSize(hmd, ovrEye_Left, eyeRenderDesc[ovrEye_Left].Fov, 1);
+	textureSize[ovrEye_Left] = NSMakeSize(size.w, size.h);
+	size = ovrHmd_GetFovTextureSize(hmd, ovrEye_Right, eyeRenderDesc[ovrEye_Right].Fov, 1);
+	textureSize[ovrEye_Right] = NSMakeSize(size.w, size.h);
+}
+
+- (NSSize) recommendedTextureSizeForEye:(ovrEyeType)eye
+{
+	return textureSize[eye];
 }
 
 @end

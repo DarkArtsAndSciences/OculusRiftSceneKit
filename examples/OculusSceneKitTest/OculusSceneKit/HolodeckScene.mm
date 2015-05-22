@@ -33,13 +33,17 @@
 - (void) setAvatar:(Avatar *)anAvatar
 {
 	avatar = anAvatar;
-	[self.rootNode addChildNode:avatar];
+	CGFloat scale = 200;
+	SCNNode *scaler = [SCNNode node];
+	[scaler addChildNode:avatar];
+	scaler.scale = SCNVector3Make(scale, scale, scale);
+	scaler.position = SCNVector3Make(0, -roomSize/2, 0);
+	[self.rootNode addChildNode:scaler];
 	// avatar spotlights autofollow and autopoint where the avatar is facing
 	SCNLight *avatarLight = [avatar makeAvatarSpotlight];
 	avatarLight.color = [NSColor colorWithDeviceRed:1.0 green:0.98 blue:0.5 alpha:1.0];
 	//avatarLight.color = [NSColor redColor];  // seeing red
 	avatarLight.gobo.contents = [NSImage imageNamed:@"EyeLight"];
-	avatar.position = SCNVector3Make(0, -roomSize/2, 0);
 }
 
 // Create six textured walls enclosing the room.
