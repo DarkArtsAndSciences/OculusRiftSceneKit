@@ -399,7 +399,7 @@ static CVReturn renderCallback(CVDisplayLinkRef displayLink,
     float y = 0.0;
     
 	void (^renderEye)(ovrEyeType) = ^(ovrEyeType eye) {
-		glActiveTexture(GL_TEXTURE0 + eye);
+		glActiveTexture(GL_TEXTURE0);
 		ovrGLTexture *tex = (ovrGLTexture*)&eyeTexture[eye];
 		glBindTexture(GL_TEXTURE_2D, tex->OGL.TexId);
 		glUniform1i(displayInputTextureUniform, 0);
@@ -424,7 +424,7 @@ static CVReturn renderCallback(CVDisplayLinkRef displayLink,
     distortion = -0.151976 * 2.0;
     glUniform2f(lensCenterUniform, x + (w + distortion * 0.5f)*0.5f, y + h*0.5f);
     glUniform2f(screenCenterUniform, 0.5f, 0.5f);
-	renderEye(ovrEye_Left);
+	renderEye(ovrEye_Right);
 
     glDisableVertexAttribArray(displayPositionAttribute);
     glDisableVertexAttribArray(displayTextureCoordinateAttribute);
