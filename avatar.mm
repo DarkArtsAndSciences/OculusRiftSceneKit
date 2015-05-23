@@ -95,7 +95,7 @@ using namespace OVR;
 		node.camera = camera;
 		// obviously the when we tilt our head, we should have a shift in eye position as well
 		// here I move eyes up by an IPD, but I am not sure if this the the best way
-		node.position = SCNVector3Make(displace.x, pivotToEyes, displace.z);
+		node.position = SCNVector3Make(-displace.x, pivotToEyes, displace.z);
 		[head addChildNode: node];
 		return node;
 	};
