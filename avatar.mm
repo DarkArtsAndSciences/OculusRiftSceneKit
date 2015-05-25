@@ -3,83 +3,18 @@
 #import <Extras/OVR_Math.h>
 using namespace OVR;
 
+@implementation AvatarHead
 
-@interface Avatar (EventHandlers)
-- (void)addEventHandlersForWASDToView: (OculusRiftSceneKitView*)view;
-- (void)addEventHandlersForArrowToView: (OculusRiftSceneKitView*)view;
-- (void)addEventHandlersForMouseToView: (OculusRiftSceneKitView*)view;
-@end
+@synthesize leftEye;
+@synthesize rightEye;
 
-@implementation Avatar
+-(id)initWithPivotToEyes:(CGFloat)pivotToEyes
 {
-	SCNNode *headNode;
-	NSTimeInterval eventTimeStamp;
-	NSPoint lastMousePosition;
-}
-
-@synthesize moveDirection;
-@synthesize speed;
-@synthesize walkSpeed;
-@synthesize runSpeed;
-@synthesize turnSpeed;
-
-#pragma mark - Initialization
-
-- (SCNVector3) facing {
-	Vector3f vec = Vector3f(0, 0, -1);
-	SCNVector4 dir = self.orientation;
-	Quatf rot = Quatf(dir.x, dir.y, dir.z, dir.w);
-	vec = rot.Rotate(vec);
-	return SCNVector3Make(vec.x, vec.y, vec.z);
-}
-
-- (id)initWithEyeHeight:(CGFloat)eyeHeight
-			pivotToEyes:(CGFloat)pivotToEyes
-		leftEyeRenderer:(SCNRenderer *)leftEyeRenderer
-	   rightEyeRenderer:(SCNRenderer *)rightEyeRenderer
-{
-	if (!(self = [super init])) return nil;
-	// default speed
-	moveDirection = SCNVector3Make(0, 0, 0);
-	walkSpeed = 1;
-	runSpeed = 3;
-	turnSpeed = M_PI*2;
-	speed = 0;
-	eventTimeStamp = [NSDate timeIntervalSinceReferenceDate];
-	// head node
-	headNode = [self makeHeadNodeWithEyeHeight:eyeHeight
-								   pivotToEyes:pivotToEyes
-							   leftEyeRenderer:leftEyeRenderer
-							  rightEyeRenderer:rightEyeRenderer];
-	[self addChildNode:headNode];
-	[self load];
-    return self;
-}
-
-// Register event handlers with the main window.
-// Defaults are StepWASD and LeftMouseDownMoveForward.
-- (void) addEventHandlersToView:(OculusRiftSceneKitView *)view
-{
-	// default event handlers
-	[self addEventHandlersForWASDToView:view];
-	[self addEventHandlersForArrowsToView:view];
-	[self addEventHandlersForMouseToView:view];
-}
-
-#pragma mark - Avatar head rotation
-- (SCNVector3) headRotation { return headNode.eulerAngles; }
-- (void)setHeadRotation: (SCNQuaternion) rotation { headNode.orientation = rotation; }
-
-- (SCNNode*)makeHeadNodeWithEyeHeight:(CGFloat)eyeHeight
-						  pivotToEyes:(CGFloat)pivotToEyes
-					  leftEyeRenderer:(SCNRenderer*)leftEyeRenderer
-					 rightEyeRenderer:(SCNRenderer*)rightEyeRenderer;
-{
-	SCNNode *head = [SCNNode node];
+	self = [super init];
+	if (self == nil) return nil;
 	// create nodes for eye cameras and head sensors
 	OculusRiftDevice *hmd = [OculusRiftDevice getDevice];
-	self.position = SCNVector3Make(0, eyeHeight-pivotToEyes, 0);
-	SCNNode *(^addNodeforEye)(ovrEyeType) = ^(ovrEyeType eye)
+	SCNNode *(^nodeForEye)(ovrEyeType) = ^(ovrEyeType eye)
 	{
 		Vector3f displace = [hmd renderDescForEye: eye].HmdToEyeViewOffset;
 		FovPort fov = [hmd renderDescForEye: eye].Fov;
@@ -96,12 +31,80 @@ using namespace OVR;
 		// obviously the when we tilt our head, we should have a shift in eye position as well
 		// here I move eyes up by an IPD, but I am not sure if this the the best way
 		node.position = SCNVector3Make(-displace.x, pivotToEyes, -0.05+displace.z);
-		[head addChildNode: node];
 		return node;
 	};
-	leftEyeRenderer.pointOfView = addNodeforEye(ovrEye_Left);
-	rightEyeRenderer.pointOfView = addNodeforEye(ovrEye_Right);
-	return head;
+	leftEye = nodeForEye(ovrEye_Left);
+	rightEye = nodeForEye(ovrEye_Right);
+	[self addChildNode:leftEye];
+	[self addChildNode:rightEye];
+	return self;
+}
+
+@end
+
+@interface Avatar (EventHandlers)
+- (void)addEventHandlersForWASDToView: (OculusRiftSceneKitView*)view;
+- (void)addEventHandlersForArrowToView: (OculusRiftSceneKitView*)view;
+- (void)addEventHandlersForMouseToView: (OculusRiftSceneKitView*)view;
+@end
+
+@implementation Avatar
+{
+	NSTimeInterval eventTimeStamp;
+	NSPoint lastMousePosition;
+}
+
+@synthesize moveDirection;
+@synthesize speed;
+@synthesize walkSpeed;
+@synthesize runSpeed;
+@synthesize turnSpeed;
+@synthesize head;
+
+#pragma mark - Initialization
+
+- (SCNVector3) facing {
+	Vector3f vec = Vector3f(0, 0, -1);
+	SCNVector4 dir = self.orientation;
+	Quatf rot = Quatf(dir.x, dir.y, dir.z, dir.w);
+	vec = rot.Rotate(vec);
+	return SCNVector3Make(vec.x, vec.y, vec.z);
+}
+
+- (id)initWithEyeHeight:(CGFloat)eyeHeight
+			pivotToEyes:(CGFloat)pivotToEyes
+{
+	if (!(self = [super init])) return nil;
+	// default speed
+	moveDirection = SCNVector3Make(0, 0, 0);
+	walkSpeed = 1;
+	runSpeed = 3;
+	turnSpeed = M_PI*2;
+	speed = 0;
+	eventTimeStamp = [NSDate timeIntervalSinceReferenceDate];
+	// head node
+	head = [self makeHeadWithPivotToEyes:pivotToEyes];
+	head.position = SCNVector3Make(0, eyeHeight-pivotToEyes, 0);
+	[self addChildNode:head];
+	[self load];
+    return self;
+}
+
+// Register event handlers with the main window.
+// Defaults are StepWASD and LeftMouseDownMoveForward.
+- (void) addEventHandlersToView:(OculusRiftSceneKitView *)view
+{
+	// default event handlers
+	[self addEventHandlersForWASDToView:view];
+	[self addEventHandlersForArrowsToView:view];
+	[self addEventHandlersForMouseToView:view];
+}
+
+#pragma mark - Avatar head rotation
+
+- (AvatarHead*)makeHeadWithPivotToEyes:(CGFloat)pivotToEyes
+{
+	return [[AvatarHead alloc] initWithPivotToEyes:pivotToEyes];
 }
 
 - (void) load
@@ -156,7 +159,7 @@ using namespace OVR;
     SCNNode *avatarLightNode = [SCNNode node];
     avatarLightNode.light = avatarLight;
     
-	[headNode addChildNode:avatarLightNode];
+	[head addChildNode:avatarLightNode];
     
     return avatarLight; // caller can set light color, etc.
 }
@@ -170,7 +173,7 @@ using namespace OVR;
     SCNNode *avatarLightNode = [SCNNode node];
     avatarLightNode.light = avatarLight;
     
-	[headNode addChildNode: avatarLightNode];
+	[head addChildNode: avatarLightNode];
     
     return avatarLight; // caller can set light color, etc.
 }

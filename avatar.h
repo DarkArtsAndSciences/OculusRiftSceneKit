@@ -1,5 +1,14 @@
 #import <SceneKit/SceneKit.h>
 
+@interface AvatarHead : SCNNode
+
+@property (readonly) SCNNode *leftEye;
+@property (readonly) SCNNode *rightEye;
+
+- (id) initWithPivotToEyes:(CGFloat)pivotToEyes;
+
+@end
+
 @interface Avatar : SCNNode
 
 @property SCNVector3 moveDirection;
@@ -7,19 +16,14 @@
 @property CGFloat walkSpeed;
 @property CGFloat runSpeed;
 @property CGFloat turnSpeed;
+@property (readonly) AvatarHead *head;
 
 - (id) initWithEyeHeight:(CGFloat)eyeHeight
-			 pivotToEyes:(CGFloat)pivotToEyes
-		 leftEyeRenderer:(SCNRenderer*)leftEyeRenderer
-		rightEyeRenderer:(SCNRenderer*)rightEyeRenderer;
+			 pivotToEyes:(CGFloat)pivotToEyes;
 
-- (SCNNode*) makeHeadNodeWithEyeHeight:(CGFloat)eyeHeight
-						   pivotToEyes:(CGFloat)pivotToEyes
-					   leftEyeRenderer:(SCNRenderer*)leftEyeRenderer
-					  rightEyeRenderer:(SCNRenderer*)rightEyeRenderer;
-- (void)setHeadRotation:(SCNQuaternion)rotation;
-- (SCNVector3)headRotation;
-- (SCNVector3) facing;
+- (AvatarHead*) makeHeadWithPivotToEyes:(CGFloat)pivotToEyes;
+
+- (SCNVector3)facing;
 - (void) load;
 
 - (void)tick;

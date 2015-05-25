@@ -116,10 +116,6 @@ NSString *const kOCVRLensCorrectionFragmentShaderString = SHADER_STRING
     
     CVDisplayLinkRef displayLink;
     
-    SCNNode *leftEyeCameraNode, *rightEyeCameraNode;
-    
-    CGFloat redBackgroundComponent, blueBackgroundComponent, greenBackgroundComponent, alphaBackgroundComponent;
-	
 	SCNScene *scene;
 
 	// event handlers
@@ -343,9 +339,9 @@ static CVReturn renderCallback(CVDisplayLinkRef displayLink,
     rightEyeRenderer.scene = newScene;
 
 	avatar = [[Avatar alloc] initWithEyeHeight:eyeHeight
-								   pivotToEyes:pivotToEyes
-							   leftEyeRenderer:leftEyeRenderer
-							  rightEyeRenderer:rightEyeRenderer];
+								   pivotToEyes:pivotToEyes];
+	leftEyeRenderer.pointOfView = avatar.head.leftEye;
+	rightEyeRenderer.pointOfView = avatar.head.rightEye;
 	if ([newScene respondsToSelector:@selector(setAvatar:)]) {
 		[newScene performSelector:@selector(setAvatar:) withObject:avatar];
 	} else [newScene.rootNode addChildNode: avatar];
@@ -453,12 +449,12 @@ static CVReturn renderCallback(CVDisplayLinkRef displayLink,
 		[(HolodeckScene*)scene tick];
 	
 	OculusRiftDevice *hmd = [OculusRiftDevice getDevice];
-	[avatar setHeadRotation:[hmd getHeadRotation]];
+	avatar.head.orientation = [hmd getHeadRotation];
 	CGLSetCurrentContext((CGLContextObj)leftEyeRenderer.context);
 	[leftEyeRenderer render];
 	glFinish();
 	
-	[avatar setHeadRotation:[hmd getHeadRotation]];
+	avatar.head.orientation = [hmd getHeadRotation];
 	CGLSetCurrentContext((CGLContextObj)rightEyeRenderer.context);
 	[rightEyeRenderer render];
 	glFinish();
@@ -499,7 +495,7 @@ static CVReturn renderCallback(CVDisplayLinkRef displayLink,
 	glBindFramebuffer(GL_FRAMEBUFFER, eyeFramebuffer[eye]);
 	glBindRenderbuffer(GL_RENDERBUFFER, eyeDepthBuffer[eye]);
 	glViewport(vp.Pos.x, vp.Pos.y, vp.Size.w, vp.Size.h);
-    glClearColor(redBackgroundComponent, greenBackgroundComponent, blueBackgroundComponent, alphaBackgroundComponent);
+    glClearColor(0, 0, 0, 0);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 }
 
