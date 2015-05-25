@@ -84,7 +84,7 @@ using namespace OVR;
     return ovrHmd_GetTrackingState(hmd, ovr_GetTimeInSeconds());
 }
 
-- (SCNVector3)getHeadRotation
+- (SCNQuaternion)getHeadRotation
 {
     // check for sensor data
     ovrTrackingState ts = [self getTrackingState];
@@ -93,13 +93,12 @@ using namespace OVR;
     {
         // TODO: popup warning for HMD out of camera range / unplugged
         //return CATransform3DMakeRotation(0, 0, 0, 0);
-		return SCNVector3Make(0, 0, 0);  // TODO: what's the actual starting value?
+		return SCNVector4Zero;  // TODO: what's the actual starting value?
     }
     
     // fill x,y,z with converted sensor data
-    Posef pose = ts.HeadPose.ThePose;
-    Vector3f rotation = pose.Rotation.ToRotationVector();
-	return SCNVector3Make(rotation.x, rotation.y, rotation.z);
+    Quatf pose = ts.HeadPose.ThePose.Orientation;
+	return SCNVector4Make(pose.x, pose.y, pose.z, pose.w);
 }
 
 - (void)shutdown

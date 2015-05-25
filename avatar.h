@@ -17,7 +17,7 @@
 						   pivotToEyes:(CGFloat)pivotToEyes
 					   leftEyeRenderer:(SCNRenderer*)leftEyeRenderer
 					  rightEyeRenderer:(SCNRenderer*)rightEyeRenderer;
-- (void)setHeadRotation:(SCNVector3)rotation;
+- (void)setHeadRotation:(SCNQuaternion)rotation;
 - (SCNVector3)headRotation;
 - (SCNVector3) facing;
 - (void) load;

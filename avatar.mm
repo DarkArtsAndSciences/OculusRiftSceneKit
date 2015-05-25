@@ -68,7 +68,7 @@ using namespace OVR;
 
 #pragma mark - Avatar head rotation
 - (SCNVector3) headRotation { return headNode.eulerAngles; }
-- (void)setHeadRotation: (SCNVector3) rotation { headNode.eulerAngles = rotation; }
+- (void)setHeadRotation: (SCNQuaternion) rotation { headNode.orientation = rotation; }
 
 - (SCNNode*)makeHeadNodeWithEyeHeight:(CGFloat)eyeHeight
 						  pivotToEyes:(CGFloat)pivotToEyes
@@ -95,7 +95,7 @@ using namespace OVR;
 		node.camera = camera;
 		// obviously the when we tilt our head, we should have a shift in eye position as well
 		// here I move eyes up by an IPD, but I am not sure if this the the best way
-		node.position = SCNVector3Make(-displace.x, pivotToEyes, displace.z);
+		node.position = SCNVector3Make(-displace.x, pivotToEyes, -0.05+displace.z);
 		[head addChildNode: node];
 		return node;
 	};

@@ -10,7 +10,7 @@
 
 + (id)getDevice;
 
-- (SCNVector3)getHeadRotation;
+- (SCNQuaternion)getHeadRotation;
 - (void)shutdown;
 - (void) configureOpenGL;
 - (const ovrEyeRenderDesc &) renderDescForEye: (ovrEyeType) eye;
