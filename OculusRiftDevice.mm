@@ -117,12 +117,8 @@ using namespace OVR;
 
 - (void)configureOpenGL
 {
-	ovrGLConfig cfg;
-	cfg.OGL.Header.API = ovrRenderAPI_OpenGL;
-	cfg.OGL.Header.BackBufferSize = Sizei(resolution.width, resolution.height);
-	cfg.OGL.Header.Multisample = 1;
-	ovrBool result = ovrHmd_ConfigureRendering(hmd, (ovrRenderAPIConfig*)&cfg.Config, hmd->DistortionCaps, hmd->DefaultEyeFov, eyeRenderDesc);
-	NSAssert(result, @"Cannot configure HMD for openGL");
+	eyeRenderDesc[ovrEye_Left] = ovrHmd_GetRenderDesc(hmd, ovrEye_Left, hmd->DefaultEyeFov[ovrEye_Left]);
+	eyeRenderDesc[ovrEye_Right] = ovrHmd_GetRenderDesc(hmd, ovrEye_Right, hmd->DefaultEyeFov[ovrEye_Right]);
 	
 	ovrSizei size = ovrHmd_GetFovTextureSize(hmd, ovrEye_Left, eyeRenderDesc[ovrEye_Left].Fov, 1);
 	textureSize[ovrEye_Left] = NSMakeSize(size.w, size.h);
