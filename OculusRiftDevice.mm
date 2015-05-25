@@ -7,6 +7,7 @@ using namespace OVR;
 @implementation OculusRiftDevice {
 	ovrEyeRenderDesc eyeRenderDesc[2];
 	NSSize textureSize[2];
+	BOOL useNativeResolution;
 }
 
 @synthesize resolution;
@@ -118,16 +119,26 @@ using namespace OVR;
 {
 	eyeRenderDesc[ovrEye_Left] = ovrHmd_GetRenderDesc(hmd, ovrEye_Left, hmd->DefaultEyeFov[ovrEye_Left]);
 	eyeRenderDesc[ovrEye_Right] = ovrHmd_GetRenderDesc(hmd, ovrEye_Right, hmd->DefaultEyeFov[ovrEye_Right]);
-	
-	ovrSizei size = ovrHmd_GetFovTextureSize(hmd, ovrEye_Left, eyeRenderDesc[ovrEye_Left].Fov, 1);
-	textureSize[ovrEye_Left] = NSMakeSize(size.w, size.h);
-	size = ovrHmd_GetFovTextureSize(hmd, ovrEye_Right, eyeRenderDesc[ovrEye_Right].Fov, 1);
-	textureSize[ovrEye_Right] = NSMakeSize(size.w, size.h);
+	[self setUseNativeResolution: NO];
 }
 
-- (NSSize) recommendedTextureSizeForEye:(ovrEyeType)eye
+- (NSSize) textureSizeForEye:(ovrEyeType)eye
 {
 	return textureSize[eye];
 }
 
+- (void)setUseNativeResolution:(BOOL)use
+{
+	useNativeResolution = use;
+	if (use) {
+		textureSize[ovrEye_Left] = resolution;
+		textureSize[ovrEye_Left].width /= 2;
+		textureSize[ovrEye_Right] = textureSize[ovrEye_Left];
+	} else {
+		ovrSizei size = ovrHmd_GetFovTextureSize(hmd, ovrEye_Left, eyeRenderDesc[ovrEye_Left].Fov, 1);
+		textureSize[ovrEye_Left] = NSMakeSize(size.w, size.h);
+		size = ovrHmd_GetFovTextureSize(hmd, ovrEye_Right, eyeRenderDesc[ovrEye_Right].Fov, 1);
+		textureSize[ovrEye_Right] = NSMakeSize(size.w, size.h);
+	}
+}
 @end

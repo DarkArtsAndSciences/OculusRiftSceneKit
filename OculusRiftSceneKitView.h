@@ -6,7 +6,7 @@
 #import "OculusRiftDevice.h"
 #import "avatar.h"
 
-@interface OculusRiftSceneKitView : NSOpenGLView <SCNSceneRendererDelegate>
+@interface OculusRiftSceneKitView : NSOpenGLView
 
 @property Avatar* avatar;
 
@@ -17,7 +17,6 @@
 
 - (CVReturn)renderTime:(const CVTimeStamp *)timeStamp;
 - (void) setUseNativeResolution: (BOOL) use;
-- (void) setEyeHeight: (CGFloat) height;
 
 - (IBAction) start: (id) sender;
 - (IBAction) stop: (id) sender;

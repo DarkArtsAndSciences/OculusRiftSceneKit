@@ -14,6 +14,8 @@
 - (void)shutdown;
 - (void) configureOpenGL;
 - (const ovrEyeRenderDesc &) renderDescForEye: (ovrEyeType) eye;
-- (NSSize) recommendedTextureSizeForEye: (ovrEyeType) eye;
+- (void) setUseNativeResolution: (BOOL) use;
+
+- (NSSize) textureSizeForEye: (ovrEyeType) eye;
 
 @end
