@@ -19,6 +19,9 @@
 - (void) setUseNativeResolution: (BOOL) use;
 - (void) setEyeHeight: (CGFloat) height;
 
+- (IBAction) start: (id) sender;
+- (IBAction) stop: (id) sender;
+
 - (void) registerKeyDownHandler:(id)handler
 						 action:(SEL)action
 						 forKey:(NSString*)key

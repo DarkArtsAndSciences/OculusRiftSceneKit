@@ -53,6 +53,7 @@
 	[window setContentView:oculusView];
 	[window makeFirstResponder:oculusView];
 	[window makeKeyAndOrderFront:self];
+	[oculusView start:self];
 }
 
 - (SCNScene*)getDefaultScene

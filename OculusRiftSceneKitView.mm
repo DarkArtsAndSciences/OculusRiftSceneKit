@@ -327,14 +327,14 @@ static CVReturn renderCallback(CVDisplayLinkRef displayLink,
     CVDisplayLinkSetOutputCallback(displayLink, renderCallback, (__bridge void *)self);
 
 	glUniform4f(hmdWarpParamUniform, 1.0, 0.22, 0.24, 0.0);
-	CVDisplayLinkStart(displayLink);
 }
 
 - (void)setScene:(SCNScene *)newScene
    withEyeHeight:(CGFloat)eyeHeight
 	 pivotToEyes:(CGFloat)pivotToEyes
 {
-	CVDisplayLinkStop(displayLink);
+	BOOL running = CVDisplayLinkIsRunning(displayLink);
+	[self stop:self];
 	scene = newScene;
 	if ([scene isKindOfClass: [HolodeckScene class]])
 		[(HolodeckScene*)scene addEventHandlersToView: self];
@@ -350,6 +350,22 @@ static CVReturn renderCallback(CVDisplayLinkRef displayLink,
 		[newScene performSelector:@selector(setAvatar:) withObject:avatar];
 	} else [newScene.rootNode addChildNode: avatar];
 	[avatar addEventHandlersToView: self];
+	if (running) [self start:self];
+}
+
+- (IBAction) start: (id) sender
+{
+	CVDisplayLinkStart(displayLink);
+}
+
+- (IBAction) stop: (id) sender
+{
+	CVDisplayLinkStop(displayLink);
+}
+
+- (void) drawRect:(NSRect)dirtyRect
+{
+	[self render];
 }
 
 - (void) setUseNativeResolution:(BOOL)use
@@ -431,24 +447,28 @@ static CVReturn renderCallback(CVDisplayLinkRef displayLink,
 	[[self openGLContext] flushBuffer];
 }
 
+- (void) render {
+	[avatar tick];
+	if ([scene isKindOfClass: [HolodeckScene class]])
+		[(HolodeckScene*)scene tick];
+	
+	OculusRiftDevice *hmd = [OculusRiftDevice getDevice];
+	[avatar setHeadRotation:[hmd getHeadRotation]];
+	CGLSetCurrentContext((CGLContextObj)leftEyeRenderer.context);
+	[leftEyeRenderer render];
+	glFinish();
+	
+	[avatar setHeadRotation:[hmd getHeadRotation]];
+	CGLSetCurrentContext((CGLContextObj)rightEyeRenderer.context);
+	[rightEyeRenderer render];
+	glFinish();
+	[self renderStereoscopicScene];  // apply distortion
+}
+
 - (CVReturn)renderTime:(const CVTimeStamp *)timeStamp
 {
     dispatch_async(dispatch_get_main_queue(), ^{
-		[avatar tick];
-		if ([scene isKindOfClass: [HolodeckScene class]])
-			 [(HolodeckScene*)scene tick];
-		
-		OculusRiftDevice *hmd = [OculusRiftDevice getDevice];
-		[avatar setHeadRotation:[hmd getHeadRotation]];
-		CGLSetCurrentContext((CGLContextObj)leftEyeRenderer.context);
-        [leftEyeRenderer render];
-		glFinish();
-
-		[avatar setHeadRotation:[hmd getHeadRotation]];
-		CGLSetCurrentContext((CGLContextObj)rightEyeRenderer.context);
-		[rightEyeRenderer render];
-		glFinish();
-        [self renderStereoscopicScene];  // apply distortion
+		[self render];
     });
     
     return kCVReturnSuccess;
