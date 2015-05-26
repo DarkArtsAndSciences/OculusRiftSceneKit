@@ -177,6 +177,7 @@ NSString *const kOCVRLensCorrectionFragmentShaderString = SHADER_STRING
 - (void)renderer:(id<SCNSceneRenderer>)aRenderer didRenderScene:(SCNScene *)scene atTime:(NSTimeInterval)time
 {
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	glFlush();
 }
 
 @end
@@ -376,11 +377,13 @@ static CVReturn renderCallback(CVDisplayLinkRef displayLink,
 
 - (IBAction) start: (id) sender
 {
+	scene.paused = FALSE;
 	CVDisplayLinkStart(displayLink);
 }
 
 - (IBAction) stop: (id) sender
 {
+	scene.paused = TRUE;
 	CVDisplayLinkStop(displayLink);
 }
 
@@ -484,11 +487,11 @@ static CVReturn renderCallback(CVDisplayLinkRef displayLink,
 	avatar.head.orientation = [hmd getHeadRotation];
 	CGLSetCurrentContext((CGLContextObj)leftEyeRenderer.context);
 	[leftEyeRenderer render];
-	glFinish();
 	
 	avatar.head.orientation = [hmd getHeadRotation];
 	CGLSetCurrentContext((CGLContextObj)rightEyeRenderer.context);
 	[rightEyeRenderer render];
+	
 	glFinish();
 	[self renderStereoscopicScene];  // apply distortion
 }
