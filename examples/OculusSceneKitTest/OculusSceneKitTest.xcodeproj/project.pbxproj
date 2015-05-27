@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		888292BE1B157E9900D38F8B /* avatar.mm in Sources */ = {isa = PBXBuildFile; fileRef = 888292BD1B157E9900D38F8B /* avatar.mm */; };
 		888292C01B157F1A00D38F8B /* LibOVR.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 888292BF1B157F1A00D38F8B /* LibOVR.framework */; };
+		888292D31B16422C00D38F8B /* LibOVR.framework in CopyFiles */ = {isa = PBXBuildFile; fileRef = 888292BF1B157F1A00D38F8B /* LibOVR.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		BC6C083817B6D2A500A20AD6 /* OculusRiftSceneKitView.mm in Sources */ = {isa = PBXBuildFile; fileRef = BC6C083717B6D1AD00A20AD6 /* OculusRiftSceneKitView.mm */; };
 		BC6C083B17B6E58E00A20AD6 /* GLProgram.m in Sources */ = {isa = PBXBuildFile; fileRef = BC6C083A17B6E57E00A20AD6 /* GLProgram.m */; };
 		BC6C083D17B6E83F00A20AD6 /* OpenGL.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = BC6C083C17B6E83F00A20AD6 /* OpenGL.framework */; };
@@ -28,6 +29,19 @@
 		F44DDD4A19A7E5280060C3EB /* avatar.dae in Resources */ = {isa = PBXBuildFile; fileRef = F44DDD4919A7E5280060C3EB /* avatar.dae */; };
 		F4E0C71E19A689A5000C6F95 /* HolodeckScene.mm in Sources */ = {isa = PBXBuildFile; fileRef = F4E0C71D19A689A5000C6F95 /* HolodeckScene.mm */; };
 /* End PBXBuildFile section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		888292D21B16421300D38F8B /* CopyFiles */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 10;
+			files = (
+				888292D31B16422C00D38F8B /* LibOVR.framework in CopyFiles */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		888292BC1B157E9900D38F8B /* avatar.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = avatar.h; path = ../../../avatar.h; sourceTree = "<group>"; };
@@ -197,6 +211,7 @@
 				BCAA76A317B5DF3200E25C2A /* Sources */,
 				BCAA76A417B5DF3200E25C2A /* Frameworks */,
 				BCAA76A517B5DF3200E25C2A /* Resources */,
+				888292D21B16421300D38F8B /* CopyFiles */,
 			);
 			buildRules = (
 			);
