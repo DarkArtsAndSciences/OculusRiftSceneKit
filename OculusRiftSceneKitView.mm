@@ -1,5 +1,4 @@
 #import "OculusRiftSceneKitView.h"
-#import "HolodeckScene.h"
 #import <LibOVR/OVR_CAPI_GL.h>
 
 #define STRINGIZE(x) #x
@@ -519,8 +518,8 @@ static CVReturn renderCallback(CVDisplayLinkRef displayLink,
 
 - (void) render {
 	[avatar tick];
-	if ([scene isKindOfClass: [HolodeckScene class]])
-		[(HolodeckScene*)scene tick];
+	if ([scene respondsToSelector:@selector(tick)])
+        [scene performSelector:@selector(tick)];
 	
 	OculusRiftDevice *hmd = [OculusRiftDevice getDevice];
 	avatar.head.orientation = [hmd getHeadRotation];

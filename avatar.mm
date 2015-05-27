@@ -91,7 +91,8 @@ using namespace OVR;
 	//NSURL *url = [NSURL URLWithString:@"file:///Path/to/file.dae"];
 	//NSURL *url = [NSURL URLWithString:@"http://www.path.to/file.dae"];
 	NSURL *url = [[NSBundle mainBundle] URLForResource:@"avatar" withExtension:@"dae"];
-	SCNSceneSource *sceneSource = [[SCNSceneSource alloc]initWithURL:url options:nil];
+    if (url == nil) return;
+    SCNSceneSource *sceneSource = [[SCNSceneSource alloc]initWithURL:url options:nil];
 	SCNScene *scene = [sceneSource sceneWithOptions: [NSDictionary dictionary] error: nil];
 	SCNNode *avatar = nil;
 	if (scene == nil) {
