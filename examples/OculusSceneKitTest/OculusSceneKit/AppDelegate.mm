@@ -173,6 +173,9 @@ SCNVector3 scaleVector(SCNVector3 direction, CGFloat scale)
 	
 	handler = [EventHandler scrollWheelEventWithModifiers:-1 handler:scrollWheel];
 	[view registerEventHandler:handler];
+	
+	if ([scene respondsToSelector:@selector(addEventHandlersToView:)])
+		[scene performSelector:@selector(addEventHandlersToView:) withObject:view];
 }
 
 @end

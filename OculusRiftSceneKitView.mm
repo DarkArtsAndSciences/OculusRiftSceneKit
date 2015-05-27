@@ -401,8 +401,6 @@ static CVReturn renderCallback(CVDisplayLinkRef displayLink,
 	BOOL running = CVDisplayLinkIsRunning(displayLink);
 	[self stop:self];
 	scene = aScene;
-	if ([scene isKindOfClass: [HolodeckScene class]])
-		[(HolodeckScene*)scene addEventHandlersToView: self];
 	
     leftEyeRenderer.scene = scene;
     rightEyeRenderer.scene = scene;
