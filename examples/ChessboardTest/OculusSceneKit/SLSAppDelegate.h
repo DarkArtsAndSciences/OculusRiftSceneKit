@@ -3,12 +3,10 @@
 
 @interface SLSAppDelegate : NSObject <NSApplicationDelegate>
 
+@property SCNScene *scene;
+@property Avatar *avatar;
+
 @property(assign) IBOutlet NSWindow *window;
 @property(assign) IBOutlet OculusRiftSceneKitView *oculusView;
-
-- (IBAction)increaseIPD:(id)sender;
-- (IBAction)decreaseIPD:(id)sender;
-- (IBAction)increaseDistance:(id)sender;
-- (IBAction)decreaseDistance:(id)sender;
 
 @end
