@@ -253,18 +253,14 @@
 - (void) addEventHandlersToView: (OculusRiftSceneKitView*)view
 {
 	// add custom controls
-	[view registerKeyDownHandler:self
-						  action:@selector(onSave:)
-						  forKey:@"49"
-				   withModifiers:0];
-}
-
-// DEMO: custom event handler
-- (void)onSave: (NSEvent*)event
-{
-	CGFloat dx = avatar.position.x, dz = avatar.position.z - roomSize/4;
-	if (sqrt(dx*dx+dz*dz) <= roomSize/4)
-		[self addMessage:@"Saved!"];
+	void (^handler)(NSEvent*) = ^(NSEvent* event) {
+		CGFloat dx = avatar.position.x, dz = avatar.position.z - roomSize/4;
+		if (sqrt(dx*dx+dz*dz) <= roomSize/4)
+			[self addMessage:@"Saved!"];
+	};
+	[view registerEventHandler: [KeyEventHandler keyDownHandlerForKeyCode:49
+																modifiers:0
+																  handler:handler]];
 }
 
 // DEMO: custom tick event, makes ball glow if avatar is in range

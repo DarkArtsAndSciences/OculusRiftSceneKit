@@ -61,39 +61,99 @@ NSString *const kOCVRLensCorrectionFragmentShaderString = SHADER_STRING
  }
  );
 
-@interface EventHandler : NSObject
-
-@property (readonly) id handler;
-@property (readonly) SEL action;
-@property (readonly) NSUInteger modifiers;
-
-- (id) initWithHandler: (id) handler action: (SEL) action modifiers: (NSUInteger) modifiers;
-- (void) actWithObject: (id)obj;
-
-@end
+BOOL checkModifiers(NSUInteger handler, NSUInteger event)
+{
+	if (handler == -1) return YES;
+	if ((handler & NSShiftKeyMask) != (event & NSShiftKeyMask)) return NO;
+	if ((handler & NSControlKeyMask) != (event &NSControlKeyMask)) return NO;
+	if ((handler & NSAlternateKeyMask) != (event & NSAlternateKeyMask)) return NO;
+	if ((handler & NSCommandKeyMask) != (event & NSCommandKeyMask)) return NO;
+	return YES;
+}
 
 @implementation EventHandler
 
 @synthesize handler;
-@synthesize action;
 @synthesize modifiers;
+@synthesize eventType;
 
-- (id) initWithHandler:(id)aHandler action:(SEL)anAction modifiers:(NSUInteger)mods
+- (id) initWithEventType:(NSEventType)type
+			   modifiers:(NSUInteger)masks
+				 handler:(void (^)(NSEvent *))aHandler
 {
 	self = [super init];
-	if (self != nil) {
-		handler = aHandler;
-		action = anAction;
-		modifiers = mods;
-	}
+	if (self == nil) return nil;
+	handler = aHandler;
+	eventType = type;
+	modifiers = masks;
 	return self;
 }
 
-- (void) actWithObject:(id)obj
++ (id) mouseDownEventWithModifiers:(NSUInteger)masks handler:(void (^)(NSEvent *))aHandler
 {
-	if (![handler respondsToSelector:action])
-		NSLog(@"Cannot respond to action");
-	[handler performSelector:action withObject:obj];
+	return [[self alloc] initWithEventType:NSLeftMouseDown modifiers:masks handler:aHandler];
+}
+
++ (id) mouseDragEventWithModifiers:(NSUInteger)masks handler:(void (^)(NSEvent *))aHandler
+{
+	return [[self alloc] initWithEventType:NSLeftMouseDragged modifiers:masks handler:aHandler];
+}
+
++ (id) mouseUpEventWithModifiers:(NSUInteger)masks handler:(void (^)(NSEvent *))aHandler
+{
+	return [[self alloc] initWithEventType:NSLeftMouseUp modifiers:masks handler:aHandler];
+}
+
++ (id)scrollWheelEventWithModifiers:(NSUInteger)masks handler:(void (^)(NSEvent *))aHandler
+{
+	return [[self alloc] initWithEventType:NSScrollWheel modifiers:masks handler:aHandler];
+}
+
+- (BOOL) matchEvent:(NSEvent *)event
+{
+	return event.type == eventType && checkModifiers(modifiers, event.type);
+}
+
+@end
+
+@implementation KeyEventHandler
+
+@synthesize keyCode;
+
+- (id)initWithEventType:(NSEventType)type
+				keyCode:(unsigned short)key
+			  modifiers:(NSUInteger)masks
+				handler:(void (^)(NSEvent *))aHandler
+{
+	self = [super initWithEventType:type modifiers:masks handler:aHandler];
+	if (self != nil) keyCode = key;
+	return self;
+}
+
+- (BOOL)matchEvent:(NSEvent *)event
+{
+	if (event.type == NSKeyDown && event.ARepeat) return NO;
+	return [super matchEvent:event] && event.keyCode == keyCode;
+}
+
++ (id)keyDownHandlerForKeyCode:(unsigned short)key
+					 modifiers:(NSUInteger)masks
+					   handler:(void (^)(NSEvent *))aHandler
+{
+	return [[self alloc] initWithEventType:NSKeyDown
+								   keyCode:key
+								 modifiers:masks
+								   handler:aHandler];
+}
+
++ (id)keyUpHandlerForKeyCode:(unsigned short)key
+				   modifiers:(NSUInteger)masks
+					 handler:(void (^)(NSEvent *))aHandler
+{
+	return [[self alloc] initWithEventType:NSKeyUp
+								   keyCode:key
+								 modifiers:masks
+								   handler:aHandler];
 }
 
 @end
@@ -185,6 +245,7 @@ NSString *const kOCVRLensCorrectionFragmentShaderString = SHADER_STRING
 @interface OculusRiftSceneKitView()
 {
 	SCNScene *scene;
+	Avatar *avatar;
     SCNRenderer *leftEyeRenderer, *rightEyeRenderer;
     
     GLProgram *displayProgram;
@@ -200,17 +261,11 @@ NSString *const kOCVRLensCorrectionFragmentShaderString = SHADER_STRING
     CVDisplayLinkRef displayLink;
 
 	// event handlers
-	NSMutableDictionary *keyDownHandlers;
-	NSMutableDictionary *keyUpHandlers;
-	NSMutableArray *mouseDownHandlers;
-	NSMutableArray *mouseUpHandlers;
-	NSMutableArray *mouseDragHandlers;
+	NSMutableDictionary *eventHandlers;
 }
 
 - (void)setupPixelFormat;
 - (void)commonInit;
-- (void)initEventHandlers;
-- (NSString*) keyCode: (NSEvent*) theEvent;
 - (void)renderStereoscopicScene;
 
 @end
@@ -226,8 +281,6 @@ static CVReturn renderCallback(CVDisplayLinkRef displayLink,
 }
 
 @implementation OculusRiftSceneKitView
-
-@synthesize avatar;
 
 #pragma mark -
 #pragma mark Initialization and teardown
@@ -266,19 +319,10 @@ static CVReturn renderCallback(CVDisplayLinkRef displayLink,
     // caller deals with error handling
 }
 
-- (void) initEventHandlers
-{
-	mouseDownHandlers = [NSMutableArray array];
-	mouseUpHandlers = [NSMutableArray array];
-	mouseDragHandlers = [NSMutableArray array];
-	keyDownHandlers = [NSMutableDictionary dictionary];
-	keyUpHandlers = [NSMutableDictionary dictionary];
-}
-
 - (void)commonInit
 {
     // initialize hardware
-	[self initEventHandlers];
+	eventHandlers = [NSMutableDictionary dictionary];
     // initialize OpenGL context
 	NSOpenGLContext *context = [[NSOpenGLContext alloc] initWithFormat:[self pixelFormat]
 														  shareContext:nil];
@@ -352,8 +396,7 @@ static CVReturn renderCallback(CVDisplayLinkRef displayLink,
 }
 
 - (void)setScene:(SCNScene *)aScene
-   withEyeHeight:(CGFloat)eyeHeight
-	 pivotToEyes:(CGFloat)pivotToEyes
+		  avatar:(Avatar*)anAvatar
 {
 	BOOL running = CVDisplayLinkIsRunning(displayLink);
 	[self stop:self];
@@ -364,14 +407,12 @@ static CVReturn renderCallback(CVDisplayLinkRef displayLink,
     leftEyeRenderer.scene = scene;
     rightEyeRenderer.scene = scene;
 
-	avatar = [[Avatar alloc] initWithEyeHeight:eyeHeight
-								   pivotToEyes:pivotToEyes];
+	avatar = anAvatar;
 	leftEyeRenderer.pointOfView = avatar.head.leftEye;
 	rightEyeRenderer.pointOfView = avatar.head.rightEye;
 	if ([scene respondsToSelector:@selector(setAvatar:)]) {
 		[scene performSelector:@selector(setAvatar:) withObject:avatar];
 	} else [scene.rootNode addChildNode: avatar];
-	[avatar addEventHandlersToView: self];
 	if (running) [self start:self];
 }
 
@@ -516,146 +557,56 @@ static CVReturn renderCallback(CVDisplayLinkRef displayLink,
 #pragma mark -
 #pragma mark Event handlers
 
-- (NSString*) keyCode: (NSEvent*) theEvent
+- (void) registerEventHandler:(EventHandler*)handler
 {
-	return [[NSNumber numberWithInt:[theEvent keyCode]] stringValue];
-}
-
-BOOL checkModifiers(NSUInteger handler, NSUInteger event)
-{
-	if (handler == -1) return YES;
-	if ((handler & NSShiftKeyMask) != (event & NSShiftKeyMask)) return NO;
-	if ((handler & NSControlKeyMask) != (event &NSControlKeyMask)) return NO;
-	if ((handler & NSAlternateKeyMask) != (event & NSAlternateKeyMask)) return NO;
-	if ((handler & NSCommandKeyMask) != (event & NSCommandKeyMask)) return NO;
-	return YES;
-}
-
-- (void) handleKey: (NSEvent*)theEvent byHandlers: (NSDictionary*) handlerMap
-{
-	NSString *key = [self keyCode: theEvent];
-	NSArray *handlers = [handlerMap objectForKey: key];
+	if (handler == nil) return;
+	NSNumber *eventType = [NSNumber numberWithInteger:handler.eventType];
+	NSMutableArray *handlers = [eventHandlers objectForKey: eventType];
 	if (handlers == nil)
-		NSLog(@"no handler for key %@", key);
-	else for (EventHandler *handler in handlers)
-		if (checkModifiers(handler.modifiers, [theEvent modifierFlags]))
-			[handler actWithObject: theEvent];
+		[eventHandlers setObject: [NSMutableArray arrayWithObject: handler] forKey: eventType];
+	else [handlers addObject: handler];
+}
+
+- (void) handleEvent:(NSEvent *)theEvent
+{
+	NSNumber *eventType = [NSNumber numberWithInteger: theEvent.type];
+	NSArray *handlers = [eventHandlers objectForKey: eventType];
+	if (handlers == nil)
+		NSLog(@"No event handler can handle event %lX", theEvent.type);
+	else for (EventHandler *handler in handlers) {
+		if ([handler matchEvent:theEvent])
+			handler.handler(theEvent);
+	}
 }
 
 - (void) keyDown:(NSEvent *)theEvent
 {
-	[self handleKey: theEvent byHandlers: keyDownHandlers];
+	[self handleEvent: theEvent];
 }
 
 - (void) keyUp:(NSEvent *)theEvent
 {
-	[self handleKey: theEvent byHandlers: keyUpHandlers];
-}
-
-- (void) handleMouseEvent: (NSEvent*)theEvent byHandlers: (NSArray*) handlers
-{
-	for (EventHandler *handler in handlers)
-		if (checkModifiers(handler.modifiers, [theEvent modifierFlags]))
-			[handler actWithObject: theEvent];
+	[self handleEvent: theEvent];
 }
 
 - (void) mouseDown:(NSEvent *)theEvent
 {
-	if ([mouseDownHandlers count] == 0)
-		NSLog(@"No mouse down handler");
-	else [self handleMouseEvent: theEvent byHandlers: mouseDownHandlers];
+	[self handleEvent: theEvent];
 }
 
-- (void) mouseUp:(NSEvent *)theEvent
+- (void)mouseDragged:(NSEvent *)theEvent
 {
-	if ([mouseUpHandlers count] == 0)
-		NSLog(@"No mouse up handler");
-	else [self handleMouseEvent: theEvent byHandlers: mouseUpHandlers];
+	[self handleEvent: theEvent];
 }
 
-- (void) mouseDragged:(NSEvent *)theEvent
+- (void)mouseUp:(NSEvent *)theEvent
 {
-	if ([mouseDragHandlers count] == 0)
-		NSLog(@"No mouse drag handler");
-	else [self handleMouseEvent: theEvent byHandlers: mouseDragHandlers];
+	[self handleEvent: theEvent];
 }
 
-- (void) registerKeyHandler:(id)handler
-					 action:(SEL)action
-					 forKey:(NSString *)key
-				  modifiers:(NSUInteger)modifiers
-					  inMap:(NSMutableDictionary*) handlerMap
+ - (void)scrollWheel:(NSEvent *)theEvent
 {
-	EventHandler *theHandler = [[EventHandler alloc] initWithHandler:handler
-															  action:action
-														   modifiers:modifiers];
-	NSMutableArray *handlers = [handlerMap objectForKey: key];
-	if (handlers == nil)
-		[handlerMap setObject: [NSMutableArray arrayWithObject: theHandler] forKey: key];
-	else [handlers addObject: theHandler];
+	[self handleEvent: theEvent];
 }
 
-- (void) registerKeyDownHandler:(id)handler
-						 action:(SEL)action
-						 forKey:(NSString*)key
-					  withModifiers:(NSUInteger)modifiers
-{
-	[self registerKeyHandler:handler
-					  action:action
-					  forKey:key
-				   modifiers:modifiers
-					   inMap:keyDownHandlers];
-}
-
-- (void) registerKeyUpHandler:(id)handler
-					   action:(SEL)action
-					   forKey:(NSString*)key
-				withModifiers:(NSUInteger)modifiers
-{
-	[self registerKeyHandler:handler
-					  action:action
-					  forKey:key
-				   modifiers:modifiers
-					   inMap:keyUpHandlers];
-}
-
-- (void) registerMouseHandler:(id)handler
-					   action:(SEL)action
-					modifiers:(NSUInteger)modifiers
-				   inHandlers:(NSMutableArray*)handlers
-{
-	[handlers addObject: [[EventHandler alloc] initWithHandler:handler
-														action:action
-													 modifiers:modifiers]];
-}
-
-- (void) registerMouseDownHandler:(id)handler
-						   action:(SEL)action
-					withModifiers:(NSUInteger)modifiers
-{
-	[self registerMouseHandler:handler
-						action:action
-					 modifiers:modifiers
-					inHandlers:mouseDownHandlers];
-}
-
-- (void) registerMouseUpHandler:(id)handler
-						 action:(SEL)action
-				  withModifiers:(NSUInteger)modifiers
-{
-	[self registerMouseHandler:handler
-						action:action
-					 modifiers:modifiers
-					inHandlers:mouseUpHandlers];
-}
-
-- (void) registerMouseDragHandler:(id)handler
-						   action:(SEL)action
-					withModifiers:(NSUInteger)modifiers
-{
-	[self registerMouseHandler:handler
-						action:action
-					 modifiers:modifiers
-					inHandlers:mouseDragHandlers];
-}
 @end

@@ -42,23 +42,14 @@ using namespace OVR;
 
 @end
 
-@interface Avatar (EventHandlers)
-- (void)addEventHandlersForWASDToView: (OculusRiftSceneKitView*)view;
-- (void)addEventHandlersForArrowToView: (OculusRiftSceneKitView*)view;
-- (void)addEventHandlersForMouseToView: (OculusRiftSceneKitView*)view;
-@end
-
 @implementation Avatar
 {
 	NSTimeInterval eventTimeStamp;
 	NSPoint lastMousePosition;
 }
 
-@synthesize moveDirection;
-@synthesize speed;
-@synthesize walkSpeed;
-@synthesize runSpeed;
-@synthesize turnSpeed;
+@synthesize velocity;
+@synthesize angularVelocity;
 @synthesize head;
 
 #pragma mark - Initialization
@@ -76,11 +67,7 @@ using namespace OVR;
 {
 	if (!(self = [super init])) return nil;
 	// default speed
-	moveDirection = SCNVector3Make(0, 0, 0);
-	walkSpeed = 1;
-	runSpeed = 3;
-	turnSpeed = M_PI*2;
-	speed = 0;
+	velocity = SCNVector3Zero;
 	eventTimeStamp = [NSDate timeIntervalSinceReferenceDate];
 	// head node
 	head = [self makeHeadWithPivotToEyes:pivotToEyes];
@@ -88,16 +75,6 @@ using namespace OVR;
 	[self addChildNode:head];
 	[self load];
     return self;
-}
-
-// Register event handlers with the main window.
-// Defaults are StepWASD and LeftMouseDownMoveForward.
-- (void) addEventHandlersToView:(OculusRiftSceneKitView *)view
-{
-	// default event handlers
-	[self addEventHandlersForWASDToView:view];
-	[self addEventHandlersForArrowsToView:view];
-	[self addEventHandlersForMouseToView:view];
 }
 
 #pragma mark - Avatar head rotation
@@ -133,17 +110,14 @@ using namespace OVR;
 // TODO: add diagonal 2D movement (add and normalize vectors)
 // MAYBE: add XY WASD movement (locked to world, not direction facing)
 
-- (BOOL)isMoving {
-	return fabs(moveDirection.x)+fabs(moveDirection.y)+fabs(moveDirection.z) == 0 || speed == 0;
-}
-
 - (void)tick
 {
 	NSTimeInterval time = [NSDate timeIntervalSinceReferenceDate];
 	NSTimeInterval dt = time - eventTimeStamp;
-	self.position = SCNVector3Make(self.position.x + moveDirection.x * speed * dt,
-								   self.position.y + moveDirection.y * speed * dt,
-								   self.position.z + moveDirection.z * speed * dt);
+	self.position = SCNVector3Make(self.position.x + velocity.x * dt,
+								   self.position.y + velocity.y * dt,
+								   self.position.z + velocity.z * dt);
+	[self rotateY: angularVelocity * dt];
 	eventTimeStamp = time;
 }
 
@@ -180,158 +154,12 @@ using namespace OVR;
 
 #pragma mark - Standard control schemes
 
-- (void)addEventHandlersForWASDToView:(OculusRiftSceneKitView *)view
-{
-	[view registerKeyDownHandler:self
-						  action:@selector(turnLeft:)
-						  forKey:@"0"
-				   withModifiers:0];
-	[view registerKeyDownHandler:self
-						  action:@selector(turnLeft:)
-						  forKey:@"0"
-				   withModifiers:NSShiftKeyMask];
-	[view registerKeyDownHandler:self
-						  action:@selector(moveBackward:)
-						  forKey: @"1"
-				   withModifiers:0];
-	[view registerKeyDownHandler:self
-						  action:@selector(moveBackward:)
-						  forKey: @"1"
-				   withModifiers:NSShiftKeyMask];
-	[view registerKeyDownHandler:self
-						  action:@selector(turnRight:)
-						  forKey: @"2"
-				   withModifiers:0];
-	[view registerKeyDownHandler:self
-						  action:@selector(turnRight:)
-						  forKey: @"2"
-				   withModifiers:NSShiftKeyMask];
-	[view registerKeyDownHandler:self
-						  action:@selector(moveForward:)
-						  forKey: @"13"
-				   withModifiers:0];
-	[view registerKeyDownHandler:self
-						  action:@selector(moveForward:)
-						  forKey: @"13"
-				   withModifiers:NSShiftKeyMask];
-	// stop
-	[view registerKeyUpHandler:self
-						action:@selector(stopMoving:)
-						forKey:@"0"
-				 withModifiers:-1];
-	[view registerKeyUpHandler:self
-						action:@selector(stopMoving:)
-						forKey: @"1"
-				 withModifiers:-1];
-	[view registerKeyUpHandler:self
-						action:@selector(stopMoving:)
-						forKey: @"2"
-				 withModifiers:-1];
-	[view registerKeyUpHandler:self
-						action:@selector(stopMoving:)
-						forKey: @"13"
-				 withModifiers:-1];
-}
-
-- (void)addEventHandlersForArrowsToView:(OculusRiftSceneKitView *)view
-{
-	[view registerKeyDownHandler:self
-						  action:@selector(turnLeft:)
-						  forKey:@"123"
-				   withModifiers:0];
-	[view registerKeyDownHandler:self
-						  action:@selector(turnLeft:)
-						  forKey:@"123"
-				   withModifiers:NSShiftKeyMask];
-	[view registerKeyDownHandler:self
-						  action:@selector(turnRight:)
-						  forKey: @"124"
-				   withModifiers:0];
-	[view registerKeyDownHandler:self
-						  action:@selector(turnRight:)
-						  forKey: @"124"
-				   withModifiers:NSShiftKeyMask];
-	[view registerKeyDownHandler:self
-						  action:@selector(moveBackward:)
-						  forKey: @"125"
-				   withModifiers:0];
-	[view registerKeyDownHandler:self
-						  action:@selector(moveBackward:)
-						  forKey: @"125"
-				   withModifiers:NSShiftKeyMask];
-	[view registerKeyDownHandler:self
-						  action:@selector(moveForward:)
-						  forKey: @"126"
-				   withModifiers:0];
-	[view registerKeyDownHandler:self
-						  action:@selector(moveForward:)
-						  forKey: @"126"
-				   withModifiers:NSShiftKeyMask];
-	// stop
-	[view registerKeyUpHandler:self
-						  action:@selector(stopMoving:)
-						  forKey:@"123"
-				   withModifiers:-1];
-	[view registerKeyUpHandler:self
-						  action:@selector(stopMoving:)
-						  forKey: @"124"
-				   withModifiers:-1];
-	[view registerKeyUpHandler:self
-						  action:@selector(stopMoving:)
-						  forKey: @"125"
-				   withModifiers:-1];
-	[view registerKeyUpHandler:self
-						action:@selector(stopMoving:)
-						forKey: @"126"
-				   withModifiers:-1];
-}
-
-- (void)addEventHandlersForMouseToView:(OculusRiftSceneKitView *)view
-{
-	[view registerMouseDownHandler:self
-							action:@selector(mouseDown:)
-					 withModifiers:0];
-	[view registerMouseDownHandler:self
-							action:@selector(mouseDown:)
-					 withModifiers:NSShiftKeyMask];
-	[view registerMouseDragHandler:self
-							action:@selector(mouseDragged:)
-					 withModifiers:0];
-	[view registerMouseDragHandler:self
-							action:@selector(mouseDragged:)
-					 withModifiers:NSShiftKeyMask];
-	// stop
-	[view registerMouseUpHandler:self
-						  action:@selector(stopMoving:)
-				   withModifiers:-1];
-}
-
 //- (void)addEventHandlersForBothMouseDownMove  // TODO: both buttons at once
 // TODO: QE turning
 // TODO: defaults for space, return, esc?
 // MAYBE: jump
 
 #pragma mark - Event handlers
-
-- (void)moveForward: (NSEvent*)event
-{
-	if (event.type == NSKeyDown && event.ARepeat) return;
-	[self tick];
-	if ([event modifierFlags] & NSShiftKeyMask)
-		speed = runSpeed;
-	else speed = walkSpeed;
-	moveDirection = [self facing];
-}
-
-- (void)moveBackward: (NSEvent*)event
-{
-	[self tick];
-	if ([event modifierFlags] & NSShiftKeyMask)
-		speed = runSpeed;
-	else speed = walkSpeed;
-	SCNVector3 dir = [self facing];
-	moveDirection = SCNVector3Make(-dir.x, -dir.y, -dir.z);
-}
 
 SCNVector3 rotateY(SCNVector3 direction, CGFloat angle)
 {
@@ -349,67 +177,6 @@ SCNVector3 rotateY(SCNVector3 direction, CGFloat angle)
 	Quatf rot = Quatf(Vector3f(0, 1, 0), angle);
 	quat = Quatf(Matrix4f(rot)*Matrix4f(quat));
 	self.orientation = SCNVector4Make(quat.x, quat.y, quat.z, quat.w);
-}
-
-- (void)moveLeft: (NSEvent*)event
-{
-	[self tick];
-	if ([event modifierFlags] & NSShiftKeyMask)
-		speed = runSpeed;
-	else speed = walkSpeed;
-	moveDirection = rotateY([self facing], -M_PI/2);
-}
-
-- (void)moveRight: (NSEvent*)event
-{
-	[self tick];
-	if ([event modifierFlags] & NSShiftKeyMask)
-		speed = runSpeed;
-	else speed = walkSpeed;
-	moveDirection = rotateY([self facing], M_PI/2);
-}
-
-- (void)turnLeft: (NSEvent*)event
-{
-	NSTimeInterval dt = [NSDate timeIntervalSinceReferenceDate] - eventTimeStamp;
-	[self rotateY: turnSpeed*dt];
-	[self moveForward:event];
-}
-
-- (void)turnRight: (NSEvent*)event
-{
-	NSTimeInterval dt = [NSDate timeIntervalSinceReferenceDate] - eventTimeStamp;
-	[self rotateY: -turnSpeed*dt];
-	[self moveForward:event];
-}
-
-- (void)stopMoving: (NSEvent*)event
-{
-	[self tick];
-	moveDirection = SCNVector3Make(0, 0, 0);
-	lastMousePosition = [NSEvent mouseLocation];
-}
-
-- (void)mouseDown: (NSEvent*)event
-{
-	if ([event modifierFlags] & NSShiftKeyMask)
-		speed = runSpeed;
-	else speed = walkSpeed;
-	lastMousePosition = [NSEvent mouseLocation];
-	[self moveForward:event];
-}
-
-- (void)mouseDragged: (NSEvent*)event
-{
-	[self tick];
-	if ([event modifierFlags] & NSShiftKeyMask)
-		speed = runSpeed;
-	else speed = walkSpeed;
-	NSPoint pos = [NSEvent mouseLocation];
-	CGFloat dx = (lastMousePosition.x - pos.x)/360*M_PI;
-	[self rotateY: dx];
-	[self moveForward:event];
-	lastMousePosition = pos;
 }
 
 @end

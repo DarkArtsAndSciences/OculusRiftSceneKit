@@ -11,11 +11,8 @@
 
 @interface Avatar : SCNNode
 
-@property SCNVector3 moveDirection;
-@property CGFloat speed;
-@property CGFloat walkSpeed;
-@property CGFloat runSpeed;
-@property CGFloat turnSpeed;
+@property SCNVector3 velocity;
+@property CGFloat angularVelocity;
 @property (readonly) AvatarHead *head;
 
 - (id) initWithEyeHeight:(CGFloat)eyeHeight
@@ -24,6 +21,7 @@
 - (AvatarHead*) makeHeadWithPivotToEyes:(CGFloat)pivotToEyes;
 
 - (SCNVector3)facing;
+- (void) rotateY:(CGFloat)angle;
 - (void) load;
 
 - (void)tick;
@@ -31,5 +29,4 @@
 - (SCNLight*)makeAvatarSpotlight;
 - (SCNLight*)makeAvatarOmnilight;
 
-- (void) addEventHandlersToView: (id) view;
 @end
