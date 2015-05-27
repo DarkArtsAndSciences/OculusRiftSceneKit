@@ -21,7 +21,21 @@
 		888293131B164DFE00D38F8B /* AppKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 888293121B164DFE00D38F8B /* AppKit.framework */; };
 		888293151B164E1200D38F8B /* OpenGL.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 888293141B164E1200D38F8B /* OpenGL.framework */; };
 		888293171B164E1D00D38F8B /* SceneKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 888293161B164E1D00D38F8B /* SceneKit.framework */; };
+		888293281B16560800D38F8B /* LibOVR.framework in CopyFiles */ = {isa = PBXBuildFile; fileRef = 8882930A1B16445300D38F8B /* LibOVR.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		888293271B1655F500D38F8B /* CopyFiles */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 10;
+			files = (
+				888293281B16560800D38F8B /* LibOVR.framework in CopyFiles */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		888292DE1B16430D00D38F8B /* OculusRiftSceneView.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = OculusRiftSceneView.framework; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -139,6 +153,7 @@
 				888292DA1B16430D00D38F8B /* Frameworks */,
 				888292DB1B16430D00D38F8B /* Headers */,
 				888292DC1B16430D00D38F8B /* Resources */,
+				888293271B1655F500D38F8B /* CopyFiles */,
 			);
 			buildRules = (
 			);
