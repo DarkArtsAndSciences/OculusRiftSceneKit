@@ -1,4 +1,4 @@
-#import "OculusRiftSceneKitView.h"
+#import "OculusRiftView.h"
 
 @interface AppDelegate : NSObject <NSApplicationDelegate>
 

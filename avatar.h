@@ -5,8 +5,7 @@
 @property (readonly) SCNNode *leftEye;
 @property (readonly) SCNNode *rightEye;
 
-- (id) initWithPivotToEyes:(CGFloat)pivotToEyes;
-
+- (id) init;
 @end
 
 @interface Avatar : SCNNode
@@ -14,15 +13,15 @@
 @property SCNVector3 velocity;
 @property CGFloat angularVelocity;
 @property (readonly) AvatarHead *head;
+@property (readonly) SCNNode *body;
 
-- (id) initWithEyeHeight:(CGFloat)eyeHeight
-			 pivotToEyes:(CGFloat)pivotToEyes;
+- (id) initWithEyeHeight:(CGFloat)eyeHeight;
 
-- (AvatarHead*) makeHeadWithPivotToEyes:(CGFloat)pivotToEyes;
+- (AvatarHead*) makeHead;
 
 - (SCNVector3)facing;
-- (void) rotateY:(CGFloat)angle;
-- (void) load;
+- (void)rotateY:(CGFloat)angle;
+- (void)load;
 
 - (void)tick;
 

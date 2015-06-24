@@ -1,5 +1,5 @@
 #import "HolodeckScene.h"
-#import "OculusRiftSceneKitView.h"
+#import "OculusRiftView.h"
 
 @implementation HolodeckScene
 {
@@ -250,7 +250,7 @@
 	[ballNode addChildNode:messageNode];
 }
 
-- (void) addEventHandlersToView: (OculusRiftSceneKitView*)view
+- (void) addEventHandlersToView: (OculusRiftView*)view
 {
 	// add custom controls
 	void (^handler)(NSEvent*) = ^(NSEvent* event) {
@@ -258,8 +258,8 @@
 		if (sqrt(dx*dx+dz*dz) <= roomSize/4)
 			[self addMessage:@"Saved!"];
 	};
-	[view registerEventHandler: [KeyEventHandler keyDownHandlerForKeyCode:49
-																modifiers:0
+	[view registerEventHandler: [EventHandler keyDownHandlerForKeyCode:49
+															 modifiers:0
 																  handler:handler]];
 }
 
@@ -269,11 +269,11 @@
 	CGFloat dx = avatar.position.x, dz = avatar.position.z - roomSize/4;
 	if (sqrt(dx*dx+dz*dz) >= roomSize/4)
 	{
-		ball.materials = message.materials = @[glowMaterial];
+		ball.firstMaterial = message.firstMaterial = glowMaterial;
 	}
 	else
 	{
-		ball.materials = message.materials = @[goldMaterial];
+		ball.firstMaterial = message.firstMaterial = goldMaterial ;
 		if ([message.name isEqual: @"Saved!"])
 		{
 			[self addMessage:@"Save Again?"];
