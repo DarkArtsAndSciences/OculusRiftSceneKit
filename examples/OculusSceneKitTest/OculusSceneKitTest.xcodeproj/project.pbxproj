@@ -7,10 +7,12 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		888292BE1B157E9900D38F8B /* avatar.mm in Sources */ = {isa = PBXBuildFile; fileRef = 888292BD1B157E9900D38F8B /* avatar.mm */; };
 		888292C01B157F1A00D38F8B /* LibOVR.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 888292BF1B157F1A00D38F8B /* LibOVR.framework */; };
 		888292D31B16422C00D38F8B /* LibOVR.framework in CopyFiles */ = {isa = PBXBuildFile; fileRef = 888292BF1B157F1A00D38F8B /* LibOVR.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
-		BC6C083817B6D2A500A20AD6 /* OculusRiftSceneKitView.mm in Sources */ = {isa = PBXBuildFile; fileRef = BC6C083717B6D1AD00A20AD6 /* OculusRiftSceneKitView.mm */; };
+		889EDC9A1B3A81D80034D626 /* avatar.m in Sources */ = {isa = PBXBuildFile; fileRef = 889EDC991B3A81D80034D626 /* avatar.m */; };
+		889EDC9D1B3A82260034D626 /* FrameBuffer.m in Sources */ = {isa = PBXBuildFile; fileRef = 889EDC9C1B3A82260034D626 /* FrameBuffer.m */; };
+		889EDCA01B3A82750034D626 /* OculusRiftView.m in Sources */ = {isa = PBXBuildFile; fileRef = 889EDC9F1B3A82750034D626 /* OculusRiftView.m */; };
+		889EDCA31B3A85030034D626 /* EventHandler.m in Sources */ = {isa = PBXBuildFile; fileRef = 889EDCA21B3A85030034D626 /* EventHandler.m */; };
 		BC6C083B17B6E58E00A20AD6 /* GLProgram.m in Sources */ = {isa = PBXBuildFile; fileRef = BC6C083A17B6E57E00A20AD6 /* GLProgram.m */; };
 		BC6C083D17B6E83F00A20AD6 /* OpenGL.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = BC6C083C17B6E83F00A20AD6 /* OpenGL.framework */; };
 		BCAA76AB17B5DF3200E25C2A /* Cocoa.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = BCAA76AA17B5DF3200E25C2A /* Cocoa.framework */; };
@@ -45,10 +47,14 @@
 
 /* Begin PBXFileReference section */
 		888292BC1B157E9900D38F8B /* avatar.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = avatar.h; path = ../../../avatar.h; sourceTree = "<group>"; };
-		888292BD1B157E9900D38F8B /* avatar.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; name = avatar.mm; path = ../../../avatar.mm; sourceTree = "<group>"; };
 		888292BF1B157F1A00D38F8B /* LibOVR.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = LibOVR.framework; path = ../../../../Downloads/OculusSDK/LibOVR/Lib/Mac/Release/LibOVR.framework; sourceTree = "<group>"; };
-		BC6C083617B6D1AD00A20AD6 /* OculusRiftSceneKitView.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = OculusRiftSceneKitView.h; path = ../../../OculusRiftSceneKitView.h; sourceTree = "<group>"; };
-		BC6C083717B6D1AD00A20AD6 /* OculusRiftSceneKitView.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; name = OculusRiftSceneKitView.mm; path = ../../../OculusRiftSceneKitView.mm; sourceTree = "<group>"; };
+		889EDC991B3A81D80034D626 /* avatar.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = avatar.m; path = ../../../avatar.m; sourceTree = "<group>"; };
+		889EDC9B1B3A82260034D626 /* FrameBuffer.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = FrameBuffer.h; path = ../../../FrameBuffer.h; sourceTree = "<group>"; };
+		889EDC9C1B3A82260034D626 /* FrameBuffer.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = FrameBuffer.m; path = ../../../FrameBuffer.m; sourceTree = "<group>"; };
+		889EDC9E1B3A82750034D626 /* OculusRiftView.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = OculusRiftView.h; path = ../../../OculusRiftView.h; sourceTree = "<group>"; };
+		889EDC9F1B3A82750034D626 /* OculusRiftView.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = OculusRiftView.m; path = ../../../OculusRiftView.m; sourceTree = "<group>"; };
+		889EDCA11B3A85030034D626 /* EventHandler.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = EventHandler.h; path = ../../../EventHandler.h; sourceTree = "<group>"; };
+		889EDCA21B3A85030034D626 /* EventHandler.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = EventHandler.m; path = ../../../EventHandler.m; sourceTree = "<group>"; };
 		BC6C083917B6E57E00A20AD6 /* GLProgram.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = GLProgram.h; path = ../../GLProgram.h; sourceTree = "<group>"; };
 		BC6C083A17B6E57E00A20AD6 /* GLProgram.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; name = GLProgram.m; path = ../../GLProgram.m; sourceTree = "<group>"; };
 		BC6C083C17B6E83F00A20AD6 /* OpenGL.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = OpenGL.framework; path = System/Library/Frameworks/OpenGL.framework; sourceTree = SDKROOT; };
@@ -145,16 +151,20 @@
 		BCAA76B017B5DF3200E25C2A /* OculusSceneKitTest */ = {
 			isa = PBXGroup;
 			children = (
+				889EDCA11B3A85030034D626 /* EventHandler.h */,
+				889EDCA21B3A85030034D626 /* EventHandler.m */,
+				889EDC9E1B3A82750034D626 /* OculusRiftView.h */,
+				889EDC9F1B3A82750034D626 /* OculusRiftView.m */,
+				889EDC9B1B3A82260034D626 /* FrameBuffer.h */,
+				889EDC9C1B3A82260034D626 /* FrameBuffer.m */,
 				888292BC1B157E9900D38F8B /* avatar.h */,
-				888292BD1B157E9900D38F8B /* avatar.mm */,
+				889EDC991B3A81D80034D626 /* avatar.m */,
 				F4E0C71C19A689A5000C6F95 /* HolodeckScene.h */,
 				F4E0C71D19A689A5000C6F95 /* HolodeckScene.mm */,
 				BCAA76BC17B5DF3200E25C2A /* AppDelegate.h */,
 				BCAA76BD17B5DF3200E25C2A /* AppDelegate.mm */,
 				BCD6160C17BB2E5C005535A1 /* OculusRiftDevice.h */,
 				BCD6160D17BB2E5C005535A1 /* OculusRiftDevice.mm */,
-				BC6C083617B6D1AD00A20AD6 /* OculusRiftSceneKitView.h */,
-				BC6C083717B6D1AD00A20AD6 /* OculusRiftSceneKitView.mm */,
 			);
 			name = OculusSceneKitTest;
 			path = OculusSceneKit;
@@ -273,9 +283,11 @@
 				F4E0C71E19A689A5000C6F95 /* HolodeckScene.mm in Sources */,
 				BCAA76B717B5DF3200E25C2A /* main.m in Sources */,
 				BCAA76BE17B5DF3200E25C2A /* AppDelegate.mm in Sources */,
-				888292BE1B157E9900D38F8B /* avatar.mm in Sources */,
-				BC6C083817B6D2A500A20AD6 /* OculusRiftSceneKitView.mm in Sources */,
+				889EDC9A1B3A81D80034D626 /* avatar.m in Sources */,
+				889EDC9D1B3A82260034D626 /* FrameBuffer.m in Sources */,
 				BC6C083B17B6E58E00A20AD6 /* GLProgram.m in Sources */,
+				889EDCA31B3A85030034D626 /* EventHandler.m in Sources */,
+				889EDCA01B3A82750034D626 /* OculusRiftView.m in Sources */,
 				BCD6162617BB38FB005535A1 /* OculusRiftDevice.mm in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -381,14 +393,9 @@
 				HEADER_SEARCH_PATHS = (
 					"$(inherited)",
 					/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/include,
-					"$(SYSTEM_APPS_DIR)/OculusSDK/LibOVR/Src",
-					"$(SYSTEM_APPS_DIR)/OculusSDK/LibOVR/Include",
 				);
 				INFOPLIST_FILE = OculusSceneKit/Info.plist;
-				LIBRARY_SEARCH_PATHS = (
-					"$(inherited)",
-					"$(SYSTEM_APPS_DIR)/Oculus/SDK/LibOVR/Lib/Mac/Debug",
-				);
+				LIBRARY_SEARCH_PATHS = "$(inherited)";
 				PRODUCT_NAME = OculusSceneKitTest;
 				WRAPPER_EXTENSION = app;
 			};
@@ -407,14 +414,9 @@
 				HEADER_SEARCH_PATHS = (
 					"$(inherited)",
 					/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/include,
-					"$(SYSTEM_APPS_DIR)/OculusSDK/LibOVR/Src",
-					"$(SYSTEM_APPS_DIR)/OculusSDK/LibOVR/Include",
 				);
 				INFOPLIST_FILE = OculusSceneKit/Info.plist;
-				LIBRARY_SEARCH_PATHS = (
-					"$(inherited)",
-					"$(SYSTEM_APPS_DIR)/Oculus/SDK/LibOVR/Lib/Mac/Release",
-				);
+				LIBRARY_SEARCH_PATHS = "";
 				PRODUCT_NAME = OculusSceneKitTest;
 				WRAPPER_EXTENSION = app;
 			};
