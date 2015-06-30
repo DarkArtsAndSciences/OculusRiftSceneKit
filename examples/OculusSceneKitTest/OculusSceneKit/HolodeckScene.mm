@@ -1,4 +1,5 @@
 #import "HolodeckScene.h"
+#import "OculusRiftView.h"
 
 @implementation HolodeckScene
 {
@@ -12,28 +13,37 @@
 	SCNNode *messageNode;
 }
 
+@synthesize avatar;
+@synthesize roomSize;
+
 #pragma mark - Initialization
 
 - (id)init
 {
     if (!(self = [super init])) return nil;
 	
-	self.roomSize = 1200; // max and min scene coordinates are +- roomSize/2, center is 0,0,0
-	self.avatarHeight = 250;  // distance from ground to eye camera
+	roomSize = 1200; // max and min scene coordinates are +- roomSize/2, center is 0,0,0
 	
-	// starting position: standing on the floor in the center of the room
-    self.headPosition = SCNVector3Make(0.0, self.avatarHeight - self.roomSize/2, 0.0);
-    
-	// avatar spotlights autofollow and autopoint where the avatar is facing
-    SCNLight *avatarLight = [super makeAvatarSpotlight];
-    avatarLight.color = [NSColor colorWithDeviceRed:1.0 green:0.98 blue:0.5 alpha:1.0];
-    //avatarLight.color = [NSColor redColor];  // seeing red
-    avatarLight.gobo.contents = [NSImage imageNamed:@"EyeLight"];
-    
     [self setupHolodeck];  // walls
     [self setupObjects];   // room content
 	
 	return self;
+}
+
+- (void) setAvatar:(Avatar *)anAvatar
+{
+	avatar = anAvatar;
+	CGFloat scale = 200;
+	SCNNode *scaler = [SCNNode node];
+	[scaler addChildNode:avatar];
+	scaler.scale = SCNVector3Make(scale, scale, scale);
+	scaler.position = SCNVector3Make(0, -roomSize/2, 0);
+	[self.rootNode addChildNode:scaler];
+	// avatar spotlights autofollow and autopoint where the avatar is facing
+	SCNLight *avatarLight = [avatar makeAvatarSpotlight];
+	avatarLight.color = [NSColor colorWithDeviceRed:1.0 green:0.98 blue:0.5 alpha:1.0];
+	//avatarLight.color = [NSColor redColor];  // seeing red
+	avatarLight.gobo.contents = [NSImage imageNamed:@"EyeLight"];
 }
 
 // Create six textured walls enclosing the room.
@@ -53,27 +63,65 @@
     
     // create walls
 	// TODO: move this into a superclass convience function, minus holodeck material
-    [self.rootNode addChildNode:[super makeWallWithMaterial:material Width:super.roomSize height:super.roomSize Tx:0.0 y:-super.roomSize/2 z:0.0 Rangle:-M_PI_2 x:1.0 y:0.0 z:0.0]];
-    [self.rootNode addChildNode:[super makeWallWithMaterial:material Width:super.roomSize height:super.roomSize Tx:0.0 y: super.roomSize/2 z:0.0 Rangle: M_PI_2 x:1.0 y:0.0 z:0.0]];
-    [self.rootNode addChildNode:[super makeWallWithMaterial:material Width:super.roomSize height:super.roomSize Tx:-super.roomSize/2 y:0.0 z:0.0 Rangle: M_PI_2 x:0.0 y:1.0 z:0.0]];
-    [self.rootNode addChildNode:[super makeWallWithMaterial:material Width:super.roomSize height:super.roomSize Tx: super.roomSize/2 y:0.0 z:0.0 Rangle:-M_PI_2 x:0.0 y:1.0 z:0.0]];
-    [self.rootNode addChildNode:[super makeWallWithMaterial:material Width:super.roomSize height:super.roomSize Tx:0.0 y:0.0 z:-super.roomSize/2 Rangle:    0.0 x:0.0 y:0.0 z:0.0]];
-    [self.rootNode addChildNode:[super makeWallWithMaterial:material Width:super.roomSize height:super.roomSize Tx:0.0 y:0.0 z: super.roomSize/2 Rangle:  -M_PI x:0.0 y:1.0 z:0.0]];
+    [self.rootNode addChildNode:[self makeWallWithMaterial:material Width:roomSize height:roomSize Tx:0.0 y:-roomSize/2 z:0.0 Rangle:-M_PI_2 x:1.0 y:0.0 z:0.0]];
+    [self.rootNode addChildNode:[self makeWallWithMaterial:material Width:roomSize height:roomSize Tx:0.0 y: roomSize/2 z:0.0 Rangle: M_PI_2 x:1.0 y:0.0 z:0.0]];
+    [self.rootNode addChildNode:[self makeWallWithMaterial:material Width:roomSize height:roomSize Tx:-roomSize/2 y:0.0 z:0.0 Rangle: M_PI_2 x:0.0 y:1.0 z:0.0]];
+    [self.rootNode addChildNode:[self makeWallWithMaterial:material Width:roomSize height:roomSize Tx: roomSize/2 y:0.0 z:0.0 Rangle:-M_PI_2 x:0.0 y:1.0 z:0.0]];
+    [self.rootNode addChildNode:[self makeWallWithMaterial:material Width:roomSize height:roomSize Tx:0.0 y:0.0 z:-roomSize/2 Rangle:    0.0 x:0.0 y:0.0 z:0.0]];
+    [self.rootNode addChildNode:[self makeWallWithMaterial:material Width:roomSize height:roomSize Tx:0.0 y:0.0 z: roomSize/2 Rangle:  -M_PI x:0.0 y:1.0 z:0.0]];
+}
+
+
+// Make and place a wall.
+- (SCNNode*)makeWallWithMaterial:(SCNMaterial*)material
+						   Width:(float)width
+						  height:(float)height
+							  Tx:(float)tx
+							   y:(float)ty
+							   z:(float)tz
+						  Rangle:(float)rangle
+							   x:(float)rx
+							   y:(float)ry
+							   z:(float)rz
+{
+	SCNPlane *wall = [SCNPlane planeWithWidth:width height:height];
+	wall.materials = @[material];
+	
+	CATransform3D transform = CATransform3DMakeTranslation(tx, ty, tz);
+	transform = CATransform3DRotate(transform, rangle, rx, ry, rz);
+	
+	SCNNode *node = [SCNNode nodeWithGeometry:wall];
+	node.transform = transform;
+	return node;
+}
+
+// Make and place a cube.
+- (SCNNode*)makeCubeWithSize:(float)size
+					 chamfer:(float)chamfer
+				   materials:(NSArray*)materials
+					position:(SCNVector3)position
+{
+	SCNBox *box = [SCNBox boxWithWidth:size height:size length:size chamferRadius:chamfer];
+	box.materials = materials;
+	
+	SCNNode *node = [SCNNode nodeWithGeometry:box];
+	node.position = position;
+	return node;
 }
 
 // Place some objects in the room.
 - (void)setupObjects
 {
-    CGFloat podiumHeight = super.roomSize /   5;
-    CGFloat podiumRadius = super.roomSize /  25;
-    CGFloat podiumGap    = super.roomSize / 100;
+    CGFloat podiumHeight = roomSize /   5;
+    CGFloat podiumRadius = roomSize /  25;
+    CGFloat podiumGap    = roomSize / 100;
 	
-    SCNVector3 podiumPosition = SCNVector3Make(0.0, -self.roomSize/2, -self.roomSize/4);
+    SCNVector3 podiumPosition = SCNVector3Make(0.0, -roomSize/2, -roomSize/4);
 	
     SCNNode *objectsNode = [SCNNode node];
     [self.rootNode addChildNode:objectsNode];
-    
-    // Materials
+
+    // Materials 
 	// TODO: move some standard materials into superclass convenience variables
     NSColor *goldColor = [NSColor yellowColor];
     goldMaterial = [SCNMaterial material];
@@ -91,7 +139,7 @@
     silverMaterial.specular.contents = silverColor;
     
     // Silver cubes in corners
-    float b = super.roomSize/2 - super.roomSize/10;
+    float b = roomSize/2 - roomSize/10;
     SCNVector3 cubePositions[] =
     {
         SCNVector3Make( b,  b,  b),
@@ -104,7 +152,7 @@
         SCNVector3Make(-b, -b, -b)
     };
     for (int i=0; i < sizeof(cubePositions) / sizeof(cubePositions[0]); i++)
-        [objectsNode addChildNode:[self makeCubeWithSize:super.roomSize/10 chamfer:podiumGap materials:@[silverMaterial] position:cubePositions[i]]];
+        [objectsNode addChildNode:[self makeCubeWithSize:roomSize/10 chamfer:podiumGap materials:@[silverMaterial] position:cubePositions[i]]];
     
     // Silver podium base
     SCNCylinder *cylinder = [SCNCylinder cylinderWithRadius:podiumRadius height:1];
@@ -202,41 +250,30 @@
 	[ballNode addChildNode:messageNode];
 }
 
-#pragma mark - Event handlers
-
-- (void) addEventHandlers
+- (void) addEventHandlersToView: (OculusRiftView*)view
 {
-	// enable standard control schemes
-	[self addEventHandlersForHoldWASD];
-	[self addEventHandlersForHoldArrows];
-	[self addEventHandlersForLeftMouseDownMoveForward];
-	[self addEventHandlersForRightMouseDownMoveBackward];
-	
 	// add custom controls
-	[self addEventHandlerForType:NSKeyDown name:@"49" handler:@selector(onSave)];  // space
-}
-
-// DEMO: custom event handler
-- (void)onSave
-{
-	if ([self isInXZRange:self.avatarHeight x:0.0 z:-self.roomSize/4])
-	{
-		[self addMessage:@"Saved!"];
-	}
+	void (^handler)(NSEvent*) = ^(NSEvent* event) {
+		CGFloat dx = avatar.position.x, dz = avatar.position.z - roomSize/4;
+		if (sqrt(dx*dx+dz*dz) <= roomSize/4)
+			[self addMessage:@"Saved!"];
+	};
+	[view registerEventHandler: [EventHandler keyDownHandlerForKeyCode:49
+															 modifiers:0
+																  handler:handler]];
 }
 
 // DEMO: custom tick event, makes ball glow if avatar is in range
-- (void)tick:(const CVTimeStamp *)timeStamp
+- (void)tick
 {
-	[super tick:timeStamp];
-	
-	if ([self isInXZRange:self.avatarHeight x:0.0 z:-self.roomSize/4])
+	CGFloat dx = avatar.position.x, dz = avatar.position.z - roomSize/4;
+	if (sqrt(dx*dx+dz*dz) >= roomSize/4)
 	{
-		ball.materials = message.materials = @[glowMaterial];
+		ball.firstMaterial = message.firstMaterial = glowMaterial;
 	}
 	else
 	{
-		ball.materials = message.materials = @[goldMaterial];
+		ball.firstMaterial = message.firstMaterial = goldMaterial ;
 		if ([message.name isEqual: @"Saved!"])
 		{
 			[self addMessage:@"Save Again?"];

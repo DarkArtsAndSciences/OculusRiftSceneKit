@@ -1,14 +1,12 @@
 #import "OculusRiftSceneKitView.h"
+#import <LibOVR/OVR_CAPI_GL.h>
 
 #define STRINGIZE(x) #x
 #define STRINGIZE2(x) STRINGIZE(x)
 #define SHADER_STRING(text) @ STRINGIZE2(text)
 
-#define EYE_RENDER_RESOLUTION_X 800
-#define EYE_RENDER_RESOLUTION_Y 1000
-
-#define LEFT 0
-#define RIGHT 1
+#define LEFT ovrEye_Left
+#define RIGHT ovrEye_Right
 
 NSString *const kOCVRVertexShaderString = SHADER_STRING
 (
@@ -62,11 +60,191 @@ NSString *const kOCVRLensCorrectionFragmentShaderString = SHADER_STRING
  }
  );
 
+BOOL checkModifiers(NSUInteger handler, NSUInteger event)
+{
+	if (handler == -1) return YES;
+	if ((handler & NSShiftKeyMask) != (event & NSShiftKeyMask)) return NO;
+	if ((handler & NSControlKeyMask) != (event &NSControlKeyMask)) return NO;
+	if ((handler & NSAlternateKeyMask) != (event & NSAlternateKeyMask)) return NO;
+	if ((handler & NSCommandKeyMask) != (event & NSCommandKeyMask)) return NO;
+	return YES;
+}
+
+@implementation EventHandler
+
+@synthesize handler;
+@synthesize modifiers;
+@synthesize eventType;
+
+- (id) initWithEventType:(NSEventType)type
+			   modifiers:(NSUInteger)masks
+				 handler:(void (^)(NSEvent *))aHandler
+{
+	self = [super init];
+	if (self == nil) return nil;
+	handler = aHandler;
+	eventType = type;
+	modifiers = masks;
+	return self;
+}
+
++ (id) mouseDownEventWithModifiers:(NSUInteger)masks handler:(void (^)(NSEvent *))aHandler
+{
+	return [[self alloc] initWithEventType:NSLeftMouseDown modifiers:masks handler:aHandler];
+}
+
++ (id) mouseDragEventWithModifiers:(NSUInteger)masks handler:(void (^)(NSEvent *))aHandler
+{
+	return [[self alloc] initWithEventType:NSLeftMouseDragged modifiers:masks handler:aHandler];
+}
+
++ (id) mouseUpEventWithModifiers:(NSUInteger)masks handler:(void (^)(NSEvent *))aHandler
+{
+	return [[self alloc] initWithEventType:NSLeftMouseUp modifiers:masks handler:aHandler];
+}
+
++ (id)scrollWheelEventWithModifiers:(NSUInteger)masks handler:(void (^)(NSEvent *))aHandler
+{
+	return [[self alloc] initWithEventType:NSScrollWheel modifiers:masks handler:aHandler];
+}
+
+- (BOOL) matchEvent:(NSEvent *)event
+{
+	return event.type == eventType && checkModifiers(modifiers, event.type);
+}
+
+@end
+
+@implementation KeyEventHandler
+
+@synthesize keyCode;
+
+- (id)initWithEventType:(NSEventType)type
+				keyCode:(unsigned short)key
+			  modifiers:(NSUInteger)masks
+				handler:(void (^)(NSEvent *))aHandler
+{
+	self = [super initWithEventType:type modifiers:masks handler:aHandler];
+	if (self != nil) keyCode = key;
+	return self;
+}
+
+- (BOOL)matchEvent:(NSEvent *)event
+{
+	if (event.type == NSKeyDown && event.ARepeat) return NO;
+	return [super matchEvent:event] && event.keyCode == keyCode;
+}
+
++ (id)keyDownHandlerForKeyCode:(unsigned short)key
+					 modifiers:(NSUInteger)masks
+					   handler:(void (^)(NSEvent *))aHandler
+{
+	return [[self alloc] initWithEventType:NSKeyDown
+								   keyCode:key
+								 modifiers:masks
+								   handler:aHandler];
+}
+
++ (id)keyUpHandlerForKeyCode:(unsigned short)key
+				   modifiers:(NSUInteger)masks
+					 handler:(void (^)(NSEvent *))aHandler
+{
+	return [[self alloc] initWithEventType:NSKeyUp
+								   keyCode:key
+								 modifiers:masks
+								   handler:aHandler];
+}
+
+@end
+
+@interface EyeRendererDelegate : NSObject<SCNSceneRendererDelegate>
+{
+	ovrSizei textureSize;
+	GLuint renderBuffer;
+	GLuint frameBuffer;
+}
+
+@property (readonly) GLuint texture;
+
+- (id) initWithTextureSize: (NSSize) size;
+- (void) setTextureSize: (NSSize) size;
+
+- (void)renderer:(id <SCNSceneRenderer>)aRenderer willRenderScene:(SCNScene *)scene atTime:(NSTimeInterval)time;
+- (void)renderer:(id<SCNSceneRenderer>)aRenderer didRenderScene:(SCNScene *)scene atTime:(NSTimeInterval)time;
+
+@end
+
+@implementation EyeRendererDelegate
+
+@synthesize texture;
+
+-(id)initWithTextureSize:(NSSize)size
+{
+	self = [super init];
+	if (self == nil) return nil;
+
+	texture = 0;
+	renderBuffer = 0;
+	glGenFramebuffers(1, &frameBuffer);
+	[self setTextureSize:size];
+	return self;
+}
+
+- (void) dealloc
+{
+	glDeleteTextures(1, &texture);
+	glDeleteRenderbuffers(1, &renderBuffer);
+	glDeleteFramebuffers(1, &frameBuffer);
+}
+
+- (void)setTextureSize:(NSSize)size
+{
+	textureSize.w = size.width;
+	textureSize.h = size.height;
+
+	if (texture != 0) glDeleteTextures(1, &texture);
+	glGenTextures(1, &texture);
+	glBindTexture(GL_TEXTURE_2D, texture);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, textureSize.w, textureSize.h, 0, GL_BGRA, GL_UNSIGNED_BYTE, 0);
+
+	if (renderBuffer != 0) glDeleteRenderbuffers(1, &renderBuffer);
+	glGenRenderbuffers(1, &renderBuffer);
+	glBindRenderbuffer(GL_RENDERBUFFER, renderBuffer);
+	glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, textureSize.w, textureSize.h);
+	
+	glBindFramebuffer(GL_FRAMEBUFFER, frameBuffer);
+	glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, renderBuffer);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture, 0);
+	
+	GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+	NSAssert(status == GL_FRAMEBUFFER_COMPLETE, @"Incomplete eye FBO: %d", status);
+	glBindTexture(GL_TEXTURE_2D, 0);
+}
+
+- (void)renderer:(id <SCNSceneRenderer>)aRenderer willRenderScene:(SCNScene *)scene atTime:(NSTimeInterval)time
+{
+	glBindFramebuffer(GL_FRAMEBUFFER, frameBuffer);
+	glViewport(0, 0, textureSize.w, textureSize.h);
+	glClearColor(0, 0, 0, 0);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+}
+
+- (void)renderer:(id<SCNSceneRenderer>)aRenderer didRenderScene:(SCNScene *)scene atTime:(NSTimeInterval)time
+{
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	glFlush();
+}
+
+@end
+
 @interface OculusRiftSceneKitView()
 {
-	//OculusRiftDevice *oculusRiftDevice;
-	CGFloat interpupillaryDistance;
-	
+	SCNScene *scene;
+	Avatar *avatar;
     SCNRenderer *leftEyeRenderer, *rightEyeRenderer;
     
     GLProgram *displayProgram;
@@ -75,18 +253,14 @@ NSString *const kOCVRLensCorrectionFragmentShaderString = SHADER_STRING
     
     GLint lensCenterUniform, screenCenterUniform, scaleUniform, scaleInUniform, hmdWarpParamUniform;
     
-    GLuint leftEyeTexture, rightEyeTexture;
-    GLuint leftEyeDepthTexture, rightEyeDepthTexture;
-    GLuint leftEyeFramebuffer, rightEyeFramebuffer;
-    GLuint leftEyeDepthBuffer, rightEyeDepthBuffer;
-    
+	BOOL useNativeResolution;
+	EyeRendererDelegate *leftEyeDelegate;
+	EyeRendererDelegate *rightEyeDelegate;
+	
     CVDisplayLinkRef displayLink;
-    
-    BOOL leftSceneReady, rightSceneReady;
-    
-    SCNNode *leftEyeCameraNode, *rightEyeCameraNode;
-    
-    CGFloat redBackgroundComponent, blueBackgroundComponent, greenBackgroundComponent, alphaBackgroundComponent;
+
+	// event handlers
+	NSMutableDictionary *eventHandlers;
 }
 
 - (void)setupPixelFormat;
@@ -147,53 +321,35 @@ static CVReturn renderCallback(CVDisplayLinkRef displayLink,
 - (void)commonInit
 {
     // initialize hardware
-    [OculusRiftDevice getDevice];
-    interpupillaryDistance = 64.0;
-    
+	eventHandlers = [NSMutableDictionary dictionary];
     // initialize OpenGL context
-    [self setOpenGLContext:[[NSOpenGLContext alloc] initWithFormat:[self pixelFormat] shareContext:nil]];
+	NSOpenGLContext *context = [[NSOpenGLContext alloc] initWithFormat:[self pixelFormat]
+														  shareContext:nil];
+	[self setOpenGLContext: context];
+	NSOpenGLContext *leftContext = [[NSOpenGLContext alloc] initWithFormat:[self pixelFormat]
+															  shareContext:context];
+	NSOpenGLContext *rightContext = [[NSOpenGLContext alloc] initWithFormat:[self pixelFormat]
+															   shareContext:context];
     NSAssert([self openGLContext] != nil, @"Unable to create an OpenGL context.");
     // TODO: user-friendly error handling
     
     GLint swap = 0;
     [[self openGLContext] setValues:&swap forParameter:NSOpenGLCPSwapInterval];
-    
-    [[self openGLContext] makeCurrentContext];  // TODO: is this necessary? it was just created
-    
-    // create storage space for OpenGL textures
-    glActiveTexture(GL_TEXTURE0);
-    
-    void (^setupBufferWithTexture)(GLuint*, GLuint*, GLuint*) = ^(GLuint* texture, GLuint* frameBuffer, GLuint* depthBuffer)
-    {
-        glGenTextures(1, texture);
-        glBindTexture(GL_TEXTURE_2D, *texture);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-        
-        glGenFramebuffers(1, frameBuffer);
-        glBindFramebuffer(GL_FRAMEBUFFER, *frameBuffer);
-        
-        glGenRenderbuffers(1, depthBuffer);
-        glBindRenderbuffer(GL_RENDERBUFFER, *depthBuffer);
-        
-        glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, EYE_RENDER_RESOLUTION_X, EYE_RENDER_RESOLUTION_Y);
-        glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, *depthBuffer);
-        
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, EYE_RENDER_RESOLUTION_X, EYE_RENDER_RESOLUTION_Y, 0, GL_BGRA, GL_UNSIGNED_BYTE, 0);
-        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, *texture, 0);
-        
-        GLenum status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
-        NSAssert(status == GL_FRAMEBUFFER_COMPLETE, @"Incomplete eye FBO: %d", status);
-        
-        glBindTexture(GL_TEXTURE_2D, 0);
-    };
-    setupBufferWithTexture(&leftEyeTexture, &leftEyeFramebuffer, &leftEyeDepthBuffer);
-    setupBufferWithTexture(&rightEyeTexture, &rightEyeFramebuffer, &rightEyeDepthBuffer);
-    
-    glBindFramebuffer(GL_FRAMEBUFFER, 0);
-    
+
+	leftEyeRenderer  = [SCNRenderer rendererWithContext:leftContext.CGLContextObj options:nil];
+	rightEyeRenderer  = [SCNRenderer rendererWithContext:rightContext.CGLContextObj options:nil];
+	leftEyeDelegate = nil;
+	rightEyeDelegate = nil;
+
+	[context makeCurrentContext];
+	OculusRiftDevice *hmd = [OculusRiftDevice getDevice];
+	[hmd configureOpenGL];
+
+	[self setUseNativeResolution: NO];
+}
+
+- (void) prepareOpenGL
+{
     // connect shaders
     displayProgram = [[GLProgram alloc] initWithVertexShaderString:kOCVRVertexShaderString
                                               fragmentShaderString:kOCVRLensCorrectionFragmentShaderString];
@@ -230,89 +386,85 @@ static CVReturn renderCallback(CVDisplayLinkRef displayLink,
     glEnableVertexAttribArray(displayPositionAttribute);
     glEnableVertexAttribArray(displayTextureCoordinateAttribute);
     
-    // create a renderer for each eye
-    SCNRenderer *(^makeEyeRenderer)() = ^
-    {
-        SCNRenderer *renderer = [SCNRenderer rendererWithContext:[[self openGLContext] CGLContextObj] options:nil];
-        renderer.delegate = self;
-        return renderer;
-    };
-    leftEyeRenderer  = makeEyeRenderer();
-    rightEyeRenderer = makeEyeRenderer();
-    
     // connect render callback
     CGDirectDisplayID displayID = CGMainDisplayID();
     CVDisplayLinkCreateWithCGDisplay(displayID, &displayLink);
     CVDisplayLinkSetOutputCallback(displayLink, renderCallback, (__bridge void *)self);
+
+	glUniform4f(hmdWarpParamUniform, 1.0, 0.22, 0.24, 0.0);
 }
 
-- (void)setScene:(SCNScene *)newScene
+- (void)setScene:(SCNScene *)aScene
+		  avatar:(Avatar*)anAvatar
 {
-    CVDisplayLinkStop(displayLink);
-    
-    leftSceneReady = NO;
-    rightSceneReady = NO;
-    
-    glUniform4f(hmdWarpParamUniform, 1.0, 0.22, 0.24, 0.0);
-    
-    leftEyeRenderer.scene = newScene;
-    rightEyeRenderer.scene = newScene;
-	if (![newScene isKindOfClass:[Scene class]])
-	{
-		CVDisplayLinkStart(displayLink);
-		return;
-	}
-	Scene *scene = (Scene*)newScene;
-	[Scene setCurrentScene:(Scene*)scene];
-    
-    // create cameras
-    SCNNode *(^addNodeforEye)(int) = ^(int eye)
-    {
-        // TODO: read these from the HMD?
-        CGFloat verticalFOV = 97.5;
-        CGFloat horizontalFOV = 80.8;
-        
-        SCNCamera *camera = [SCNCamera camera];
-        camera.xFov = 120;
-        camera.yFov = verticalFOV;
-        camera.zNear = horizontalFOV;
-        camera.zFar = 2000;
-        
-        SCNNode *node = [SCNNode node];
-        node.camera = camera;
-        node.transform = [self getCameraTranslationForEye:eye];
-        
-        return node;
-    };
-    leftEyeRenderer.pointOfView = addNodeforEye(LEFT);
-    rightEyeRenderer.pointOfView = addNodeforEye(RIGHT);
-    [scene linkNodeToHeadRotation:leftEyeRenderer.pointOfView];
-    [scene linkNodeToHeadRotation:rightEyeRenderer.pointOfView];
-    
-    CVDisplayLinkStart(displayLink);
+	BOOL running = CVDisplayLinkIsRunning(displayLink);
+	[self stop:self];
+	scene = aScene;
+	
+    leftEyeRenderer.scene = scene;
+    rightEyeRenderer.scene = scene;
+
+	avatar = anAvatar;
+	leftEyeRenderer.pointOfView = avatar.head.leftEye;
+	rightEyeRenderer.pointOfView = avatar.head.rightEye;
+	if ([scene respondsToSelector:@selector(setAvatar:)]) {
+		[scene performSelector:@selector(setAvatar:) withObject:avatar];
+	} else [scene.rootNode addChildNode: avatar];
+	if (running) [self start:self];
+}
+
+- (IBAction) start: (id) sender
+{
+	scene.paused = FALSE;
+	CVDisplayLinkStart(displayLink);
+}
+
+- (IBAction) stop: (id) sender
+{
+	scene.paused = TRUE;
+	CVDisplayLinkStop(displayLink);
+}
+
+- (void) drawRect:(NSRect)dirtyRect
+{
+	[self render];
+}
+
+- (void) setUseNativeResolution:(BOOL)use
+{
+	[self.openGLContext makeCurrentContext];
+	OculusRiftDevice *hmd = [OculusRiftDevice getDevice];
+	[hmd setUseNativeResolution: use];
+	if (leftEyeDelegate == nil) {
+		leftEyeDelegate = [[EyeRendererDelegate alloc] initWithTextureSize:[hmd textureSizeForEye:ovrEye_Left]];
+		leftEyeRenderer.delegate = leftEyeDelegate;
+	} else [leftEyeDelegate setTextureSize: [hmd textureSizeForEye: ovrEye_Left]];
+	if (rightEyeDelegate == nil) {
+		rightEyeDelegate = [[EyeRendererDelegate alloc] initWithTextureSize:[hmd textureSizeForEye:ovrEye_Right]];
+		rightEyeRenderer.delegate = rightEyeDelegate;
+	} else [rightEyeDelegate setTextureSize: [hmd textureSizeForEye: ovrEye_Right]];
 }
 
 - (void)renderStereoscopicScene
 {
-    static const GLfloat leftEyeVertices[] = {
+	[[self openGLContext] makeCurrentContext];
+	static const GLfloat eyeVertices[2][8] = {{
         -1.0f, -1.0f,
          0.0f, -1.0f,
         -1.0f,  1.0f,
-         0.0f,  1.0f,
-    };
-    
-    static const GLfloat rightEyeVertices[] = {
+         0.0f,  1.0f
+    }, {
         0.0f, -1.0f,
         1.0f, -1.0f,
         0.0f,  1.0f,
-        1.0f,  1.0f,
-    };
-    
+        1.0f,  1.0f
+	}};
+	
     static const GLfloat textureCoordinates[] = {
         0.0f, 0.0f,
         1.0f, 0.0f,
         0.0f, 1.0f,
-        1.0f, 1.0f,
+        1.0f, 1.0f
     };
     
     [displayProgram use];
@@ -332,6 +484,15 @@ static CVReturn renderCallback(CVDisplayLinkRef displayLink,
     float x = 0.0;
     float y = 0.0;
     
+	void (^renderEye)(ovrEyeType, GLuint) = ^(ovrEyeType eye, GLuint texture) {
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, texture);
+		glUniform1i(displayInputTextureUniform, 0);
+		glVertexAttribPointer(displayPositionAttribute, 2, GL_FLOAT, 0, 0, eyeVertices[eye]);
+		glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+		glBindTexture(GL_TEXTURE_2D, 0);
+	};
+
     // Left eye
     float distortion = 0.151976 * 2.0;
     float scaleFactor = 0.583225;
@@ -341,49 +502,42 @@ static CVReturn renderCallback(CVDisplayLinkRef displayLink,
     glUniform4f(hmdWarpParamUniform, 1.0, 0.22, 0.24, 0.0);
     glUniform2f(lensCenterUniform, x + (w + distortion * 0.5f)*0.5f, y + h*0.5f);
     glUniform2f(screenCenterUniform, x + w*0.5f, y + h*0.5f);
-    
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, leftEyeTexture);
-    glUniform1i(displayInputTextureUniform, 0);
-    glVertexAttribPointer(displayPositionAttribute, 2, GL_FLOAT, 0, 0, leftEyeVertices);
-    glVertexAttribPointer(displayTextureCoordinateAttribute, 2, GL_FLOAT, 0, 0, textureCoordinates);
-    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-    glBindTexture(GL_TEXTURE_2D, 0);
-    
+	glVertexAttribPointer(displayTextureCoordinateAttribute, 2, GL_FLOAT, 0, 0, textureCoordinates);
+	renderEye(ovrEye_Left, leftEyeDelegate.texture);
+	
     // Right eye
     distortion = -0.151976 * 2.0;
     glUniform2f(lensCenterUniform, x + (w + distortion * 0.5f)*0.5f, y + h*0.5f);
     glUniform2f(screenCenterUniform, 0.5f, 0.5f);
-    
-    glActiveTexture(GL_TEXTURE1);
-    glBindTexture(GL_TEXTURE_2D, rightEyeTexture);
-    glUniform1i(displayInputTextureUniform, 1);
-    glVertexAttribPointer(displayPositionAttribute, 2, GL_FLOAT, 0, 0, rightEyeVertices);
-    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-    glBindTexture(GL_TEXTURE_2D, 0);
-    
+	renderEye(ovrEye_Right, rightEyeDelegate.texture);
+
     glDisableVertexAttribArray(displayPositionAttribute);
     glDisableVertexAttribArray(displayTextureCoordinateAttribute);
-    
-    rightSceneReady = NO;
-    leftSceneReady = NO;
+	[[self openGLContext] flushBuffer];
+}
+
+- (void) render {
+	[avatar tick];
+	if ([scene respondsToSelector:@selector(tick)])
+        [scene performSelector:@selector(tick)];
+	
+	OculusRiftDevice *hmd = [OculusRiftDevice getDevice];
+	avatar.head.orientation = [hmd getHeadRotation];
+	CGLSetCurrentContext((CGLContextObj)leftEyeRenderer.context);
+	[leftEyeRenderer render];
+	
+	avatar.head.orientation = [hmd getHeadRotation];
+	CGLSetCurrentContext((CGLContextObj)rightEyeRenderer.context);
+	[rightEyeRenderer render];
+	
+	glFinish();
+	[self renderStereoscopicScene];  // apply distortion
 }
 
 - (CVReturn)renderTime:(const CVTimeStamp *)timeStamp
 {
-    // use a background queue to avoid blocking the main thread
     dispatch_async(dispatch_get_main_queue(), ^{
-        [[Scene currentScene] tick:timeStamp];
-        
-        float x, y, z;
-        [[OculusRiftDevice getDevice] getHeadRotationX:&x Y:&y Z:&z]; // update camera pose
-        [[Scene currentScene] setHeadRotationX:x Y:y Z:z];
-        
-        [[self openGLContext] makeCurrentContext];
-        [leftEyeRenderer render];
-        [rightEyeRenderer render];
-        [self renderStereoscopicScene];  // apply distortion
-        [[self openGLContext] flushBuffer];
+		[self render];
     });
     
     return kCVReturnSuccess;
@@ -393,82 +547,63 @@ static CVReturn renderCallback(CVDisplayLinkRef displayLink,
 {
     [[OculusRiftDevice getDevice] shutdown];
     
-    glDeleteFramebuffers(1, &leftEyeFramebuffer);
-    glDeleteRenderbuffers(1, &leftEyeDepthBuffer);
-    glDeleteTextures(1, &leftEyeTexture);
-    glDeleteFramebuffers(1, &rightEyeFramebuffer);
-    glDeleteRenderbuffers(1, &rightEyeDepthBuffer);
-    glDeleteTextures(1, &rightEyeTexture);
-    
     CVDisplayLinkStop(displayLink);
     CVDisplayLinkRelease(displayLink);
 }
 
 #pragma mark -
-#pragma mark SCNSceneRendererDelegate methods
+#pragma mark Event handlers
 
-- (void)renderer:(id <SCNSceneRenderer>)aRenderer willRenderScene:(SCNScene *)scene atTime:(NSTimeInterval)time;
+- (void) registerEventHandler:(EventHandler*)handler
 {
-    if (aRenderer == leftEyeRenderer)
-    {
-        glBindFramebuffer(GL_FRAMEBUFFER, leftEyeFramebuffer);
-        glBindRenderbuffer(GL_RENDERBUFFER, leftEyeDepthBuffer);
-        
-        glViewport(0, 0, EYE_RENDER_RESOLUTION_X, EYE_RENDER_RESOLUTION_Y);
-    }
-    else if (aRenderer == rightEyeRenderer)
-    {
-        glBindFramebuffer(GL_FRAMEBUFFER, rightEyeFramebuffer);
-        glBindRenderbuffer(GL_RENDERBUFFER, rightEyeDepthBuffer);
-        
-        glViewport(0, 0, EYE_RENDER_RESOLUTION_X, EYE_RENDER_RESOLUTION_Y);
-    }
-    
-    glClearColor(redBackgroundComponent, greenBackgroundComponent, blueBackgroundComponent, alphaBackgroundComponent);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	if (handler == nil) return;
+	NSNumber *eventType = [NSNumber numberWithInteger:handler.eventType];
+	NSMutableArray *handlers = [eventHandlers objectForKey: eventType];
+	if (handlers == nil)
+		[eventHandlers setObject: [NSMutableArray arrayWithObject: handler] forKey: eventType];
+	else [handlers addObject: handler];
 }
 
-- (void)renderer:(id <SCNSceneRenderer>)aRenderer didRenderScene:(SCNScene *)scene atTime:(NSTimeInterval)time;
+- (void) handleEvent:(NSEvent *)theEvent
 {
-    if (aRenderer == leftEyeRenderer)
-    {
-        if (rightSceneReady)
-        {
-            [self renderStereoscopicScene];
-        }
-        else
-        {
-            leftSceneReady = YES;
-        }
-    }
-    else if (aRenderer == rightEyeRenderer)
-    {
-        if (leftSceneReady)
-        {
-            [self renderStereoscopicScene];
-        }
-        else
-        {
-            rightSceneReady = YES;
-        }
-    }
+	NSNumber *eventType = [NSNumber numberWithInteger: theEvent.type];
+	NSArray *handlers = [eventHandlers objectForKey: eventType];
+	if (handlers == nil)
+		NSLog(@"No event handler can handle event %lX", theEvent.type);
+	else for (EventHandler *handler in handlers) {
+		if ([handler matchEvent:theEvent])
+			handler.handler(theEvent);
+	}
 }
 
-#pragma mark -
-#pragma mark Accessors
-
-- (CATransform3D)getCameraTranslationForEye:(int)eye
+- (void) keyDown:(NSEvent *)theEvent
 {
-    // TODO: read IPD from HMD?
-    float x = (-1 * eye) * (interpupillaryDistance/-2.0);
-    return CATransform3DMakeTranslation(x, 0.0, 0.0);
+	[self handleEvent: theEvent];
 }
-- (void)setInterpupillaryDistance:(CGFloat)ipd;
+
+- (void) keyUp:(NSEvent *)theEvent
 {
-    NSLog(@"IPD: %f", ipd);
-    interpupillaryDistance = ipd;
-    leftEyeCameraNode.transform = [self getCameraTranslationForEye:LEFT];
-    rightEyeCameraNode.transform = [self getCameraTranslationForEye:RIGHT];
+	[self handleEvent: theEvent];
+}
+
+- (void) mouseDown:(NSEvent *)theEvent
+{
+	[self handleEvent: theEvent];
+}
+
+- (void)mouseDragged:(NSEvent *)theEvent
+{
+	[self handleEvent: theEvent];
+}
+
+- (void)mouseUp:(NSEvent *)theEvent
+{
+	[self handleEvent: theEvent];
+}
+
+ - (void)scrollWheel:(NSEvent *)theEvent
+{
+	[self handleEvent: theEvent];
 }
 
 @end

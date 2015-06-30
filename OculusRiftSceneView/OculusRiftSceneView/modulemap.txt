@@ -1,0 +1,15 @@
+module OculusRiftSceneView {
+    module Avatar {
+        header "avatar.h"
+        export *
+    }
+    module OculusRiftDivice {
+        header "OculusRiftDvice.h"
+        export *
+    }
+    module OculusRiftSceneKitView {
+        header "OculusRiftSceneKitView.h"
+        export *
+    }
+    umbrella header "OculusRiftSceneView.h"
+}

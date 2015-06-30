@@ -1,3 +1,0 @@
-@interface MainWindow : NSWindow
-
-@end

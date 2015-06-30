@@ -1,8 +1,12 @@
-#import "OculusRiftSceneKitView.h"
+#import "OculusRiftView.h"
 
 @interface AppDelegate : NSObject <NSApplicationDelegate>
 
-@property(assign) IBOutlet NSWindow *window;
-@property(assign) IBOutlet OculusRiftSceneKitView *oculusView;
+@property Avatar *avatar;
+@property SCNScene *scene;
+
+@property CGFloat walkSpeed;
+@property CGFloat runSpeed;
+@property CGFloat turnSpeed;
 
 @end
